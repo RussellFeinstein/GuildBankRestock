@@ -553,6 +553,7 @@ end)
 -- ============================================================
 SLASH_GUILDBANKRESTOCK1 = "/restock"
 SLASH_GUILDBANKRESTOCK2 = "/bankrestock"
+SLASH_GUILDBANKRESTOCK3 = "/rs"
 SlashCmdList["GUILDBANKRESTOCK"] = function(msg)
     local cmd = msg:lower():match("^%s*(%S*)") or ""
     if cmd == "stop" then
