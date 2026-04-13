@@ -2,6 +2,11 @@
 
 All notable changes to GuildBankRestock will be documented here.
 
+## [0.1.1] - 2026-04-13
+
+### Changed
+- Each item category is now defined in its own file under `Categories/` (Gems, Enchants, Potions, Flasks, Oils) instead of inline in the main file
+
 ## [0.1.0] - 2026-04-10
 
 ### Changed

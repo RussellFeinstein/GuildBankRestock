@@ -4,4 +4,10 @@
 ## Dependencies: Auctionator
 ## Version: 0.0.1
 
+Categories\Gems.lua
+Categories\Enchants.lua
+Categories\Potions.lua
+Categories\Flasks.lua
+Categories\Oils.lua
+
 GuildBankRestock.lua
