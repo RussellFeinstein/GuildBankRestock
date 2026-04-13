@@ -11,3 +11,5 @@ Categories\Flasks.lua
 Categories\Oils.lua
 
 GuildBankRestock.lua
+UI.lua
+Commands.lua

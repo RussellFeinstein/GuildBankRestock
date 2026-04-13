@@ -2,6 +2,12 @@
 
 All notable changes to GuildBankRestock will be documented here.
 
+## [0.4.0] - 2026-04-13
+
+### Changed
+- Split main lua into `GuildBankRestock.lua` (core logic), `UI.lua` (frames and handlers), and `Commands.lua` (slash commands)
+- Updated README to reflect current features: rank filter buttons, `/rs` alias, category files, item ID format, and header entries
+
 ## [0.3.1] - 2026-04-13
 
 ### Fixed
