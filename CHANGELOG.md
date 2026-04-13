@@ -2,6 +2,12 @@
 
 All notable changes to GuildBankRestock will be documented here.
 
+## [0.5.0] - 2026-04-13
+
+### Added
+- Settings now persist across sessions via SavedVariables (`GuildBankRestockDB`)
+- Item enabled states, quantities, and the active rank filter (R1/R2/Both) are all saved automatically on change and restored on login
+
 ## [0.4.1] - 2026-04-13
 
 ### Added

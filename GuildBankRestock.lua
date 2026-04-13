@@ -84,6 +84,51 @@ function ns.GetNextItem()
 end
 
 -- ============================================================
+-- SavedVariables  (GuildBankRestockDB)
+-- ============================================================
+local function LoadSettings()
+    if not GuildBankRestockDB then
+        GuildBankRestockDB = { items = {}, rankFilter = nil }
+    end
+    for catIdx, cat in ipairs(CATEGORIES) do
+        for itemIdx, item in ipairs(cat.items) do
+            if not item.header then
+                local saved = GuildBankRestockDB.items[catIdx .. "_" .. itemIdx]
+                if saved then
+                    item.enabled = saved.enabled
+                    item.qty     = saved.qty
+                end
+            end
+        end
+    end
+end
+
+function ns.SaveItem(catIdx, itemIdx)
+    if not GuildBankRestockDB then
+        GuildBankRestockDB = { items = {}, rankFilter = nil }
+    end
+    local item = CATEGORIES[catIdx].items[itemIdx]
+    GuildBankRestockDB.items[catIdx .. "_" .. itemIdx] = { enabled = item.enabled, qty = item.qty }
+end
+
+function ns.SaveRankFilter(rank)
+    if not GuildBankRestockDB then
+        GuildBankRestockDB = { items = {}, rankFilter = nil }
+    end
+    GuildBankRestockDB.rankFilter = rank
+end
+
+-- Runs after SavedVariables are available; ns.ApplySettingsToUI is set by UI.lua.
+local initFrame = CreateFrame("Frame")
+initFrame:RegisterEvent("ADDON_LOADED")
+initFrame:SetScript("OnEvent", function(_, _, addonName)
+    if addonName ~= ADDON_NAME then return end
+    LoadSettings()
+    if ns.ApplySettingsToUI then ns.ApplySettingsToUI() end
+    initFrame:UnregisterEvent("ADDON_LOADED")
+end)
+
+-- ============================================================
 -- Auctionator EventBus listener  (search completion)
 -- ns.UpdateUI is set by UI.lua after it loads.
 -- ============================================================

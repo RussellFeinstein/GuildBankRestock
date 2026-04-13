@@ -66,3 +66,4 @@ Categories that use subcategory headers (e.g. Enchants) can include `{ header = 
 - Start searches all enabled items across all category tabs in one run
 - The addon will stop automatically if a purchase fails (e.g. insufficient gold)
 - The window is resizable, movable, and can be closed with ESC
+- Item enabled states, quantities, and the active rank filter are saved automatically and restored on login

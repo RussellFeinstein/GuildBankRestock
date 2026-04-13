@@ -214,6 +214,7 @@ for catIdx, cat in ipairs(CATEGORIES) do
             cb:SetChecked(item.enabled)
             cb:SetScript("OnClick", function(self)
                 CATEGORIES[catIdx].items[i].enabled = self:GetChecked()
+                ns.SaveItem(catIdx, i)
             end)
 
             local nameFrame = CreateFrame("Frame", nil, rowFrame)
@@ -266,6 +267,7 @@ for catIdx, cat in ipairs(CATEGORIES) do
                 if v < 1 then v = 1 end
                 CATEGORIES[catIdx].items[i].qty = v
                 self:SetText(tostring(v))
+                ns.SaveItem(catIdx, i)
             end)
 
             categoryRows[catIdx][i] = { rowFrame = rowFrame, cb = cb, qtyBox = qtyBox }
@@ -305,6 +307,7 @@ allBtn:SetScript("OnClick", function()
         if not row.headerFrame then
             CATEGORIES[currentCatIdx].items[i].enabled = true
             row.cb:SetChecked(true)
+            ns.SaveItem(currentCatIdx, i)
         end
     end
 end)
@@ -314,6 +317,7 @@ noneBtn:SetScript("OnClick", function()
         if not row.headerFrame then
             CATEGORIES[currentCatIdx].items[i].enabled = false
             row.cb:SetChecked(false)
+            ns.SaveItem(currentCatIdx, i)
         end
     end
 end)
@@ -368,6 +372,7 @@ local function ApplyRankFilter(rank)
         categoryHeights[catIdx] = totalH
     end
     scrollChild:SetHeight(categoryHeights[currentCatIdx] or 1)
+    ns.SaveRankFilter(rank)
 end
 
 local function SetRankButtonActive(rank)
@@ -388,6 +393,25 @@ r2Btn:SetScript("OnClick",   function() ApplyRankFilter(2);   SetRankButtonActiv
 bothBtn:SetScript("OnClick", function() ApplyRankFilter(nil); SetRankButtonActive(nil) end)
 
 SetRankButtonActive(nil)  -- Both is the default state
+
+-- Called by GuildBankRestock.lua after SavedVariables are loaded.
+-- Refreshes all widgets from CATEGORIES and restores the saved rank filter.
+ns.ApplySettingsToUI = function()
+    for catIdx, cat in ipairs(CATEGORIES) do
+        for i, item in ipairs(cat.items) do
+            if not item.header then
+                local row = categoryRows[catIdx][i]
+                if row then
+                    row.cb:SetChecked(item.enabled)
+                    row.qtyBox:SetText(tostring(item.qty))
+                end
+            end
+        end
+    end
+    local rank = GuildBankRestockDB and GuildBankRestockDB.rankFilter or nil
+    ApplyRankFilter(rank)
+    SetRankButtonActive(rank)
+end
 
 -- ============================================================
 -- UpdateUI
