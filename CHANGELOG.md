@@ -2,6 +2,11 @@
 
 All notable changes to GuildBankRestock will be documented here.
 
+## [0.2.5] - 2026-04-13
+
+### Changed
+- Column headers (Item, Qty) now render in larger text
+
 ## [0.2.4] - 2026-04-13
 
 ### Fixed

@@ -170,11 +170,11 @@ local categoryGroups = {}  -- catIdx -> Frame  (declared before OnSizeChanged cl
 
 local HEADER_H = 16
 
-local headerItem = checklistSection:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+local headerItem = checklistSection:CreateFontString(nil, "OVERLAY", "GameFontNormal")
 headerItem:SetPoint("TOPLEFT", checklistSection, "TOPLEFT", COL_NAME, 0)
 headerItem:SetText("Item")
 
-local headerQty = checklistSection:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+local headerQty = checklistSection:CreateFontString(nil, "OVERLAY", "GameFontNormal")
 headerQty:SetPoint("TOPRIGHT", checklistSection, "TOPRIGHT", -(QTY_W / 2 + 4), 0)
 headerQty:SetText("Qty")
 
