@@ -240,8 +240,6 @@ local categoryRows = {}  -- catIdx -> array of { cb, qtyBox }
 
 local COL_CB   = 2
 local COL_NAME = 24
-local NAME_W   = 200
-local COL_QTY  = COL_NAME + NAME_W + 4
 local QTY_W    = 34
 local ROW_H    = 20
 
@@ -270,15 +268,16 @@ for catIdx, cat in ipairs(CATEGORIES) do
             CATEGORIES[catIdx].items[i].enabled = self:GetChecked()
         end)
 
-        -- Hover zone for tooltip (sits over the name area)
+        -- Hover zone for tooltip (stretches between checkbox and qty box)
         local nameFrame = CreateFrame("Frame", nil, group)
-        nameFrame:SetPoint("TOPLEFT", group, "TOPLEFT", COL_NAME, yOff)
-        nameFrame:SetSize(NAME_W, ROW_H)
+        nameFrame:SetPoint("TOPLEFT",  group, "TOPLEFT",  COL_NAME,        yOff)
+        nameFrame:SetPoint("TOPRIGHT", group, "TOPRIGHT", -(QTY_W + 8),    yOff)
+        nameFrame:SetHeight(ROW_H)
         nameFrame:EnableMouse(true)
 
         local label = nameFrame:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-        label:SetPoint("LEFT", nameFrame, "LEFT", 0, 0)
-        label:SetWidth(NAME_W)
+        label:SetPoint("LEFT",  nameFrame, "LEFT",  0, 0)
+        label:SetPoint("RIGHT", nameFrame, "RIGHT", 0, 0)
         label:SetJustifyH("LEFT")
         label:SetWordWrap(false)
         label:SetText("item:" .. item.id)
@@ -303,10 +302,10 @@ for catIdx, cat in ipairs(CATEGORIES) do
         end)
         nameFrame:SetScript("OnLeave", function() GameTooltip:Hide() end)
 
-        -- Quantity box
+        -- Quantity box (right-anchored so it tracks the window edge on resize)
         local qtyBox = CreateFrame("EditBox", nil, group, "InputBoxTemplate")
         qtyBox:SetSize(QTY_W, 16)
-        qtyBox:SetPoint("LEFT", group, "TOPLEFT", COL_QTY, yOff - ROW_H / 2)
+        qtyBox:SetPoint("RIGHT", group, "TOPRIGHT", -4, yOff - ROW_H / 2)
         qtyBox:SetNumeric(true)
         qtyBox:SetMaxLetters(3)
         qtyBox:SetAutoFocus(false)

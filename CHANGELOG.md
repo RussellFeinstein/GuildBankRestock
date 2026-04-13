@@ -2,6 +2,12 @@
 
 All notable changes to GuildBankRestock will be documented here.
 
+## [0.2.2] - 2026-04-13
+
+### Fixed
+- Item name column now stretches to fill available space when the window is resized
+- Quantity box is anchored to the right edge of the window and moves with it on resize
+
 ## [0.2.1] - 2026-04-13
 
 ### Fixed
