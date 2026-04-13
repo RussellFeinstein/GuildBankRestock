@@ -2,6 +2,11 @@
 
 All notable changes to GuildBankRestock will be documented here.
 
+## [0.2.1] - 2026-04-13
+
+### Fixed
+- Item names no longer wrap onto a second line in the checklist
+
 ## [0.2.0] - 2026-04-13
 
 ### Added

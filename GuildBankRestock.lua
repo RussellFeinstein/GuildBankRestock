@@ -280,6 +280,7 @@ for catIdx, cat in ipairs(CATEGORIES) do
         label:SetPoint("LEFT", nameFrame, "LEFT", 0, 0)
         label:SetWidth(NAME_W)
         label:SetJustifyH("LEFT")
+        label:SetWordWrap(false)
         label:SetText("item:" .. item.id)
 
         local function TryLoadLink(attempts)
