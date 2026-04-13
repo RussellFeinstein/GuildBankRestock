@@ -2,6 +2,12 @@
 
 All notable changes to GuildBankRestock will be documented here.
 
+## [0.2.3] - 2026-04-13
+
+### Added
+- Column headers (Item, Qty) above the checklist
+- ESC now closes the window
+
 ## [0.2.2] - 2026-04-13
 
 ### Fixed

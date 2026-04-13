@@ -113,6 +113,7 @@ frame:SetBackdropColor(0, 0, 0, 0.85)
 frame:SetResizable(true)
 frame:SetResizeBounds(280, 200, 700, 900)
 frame:Hide()
+tinsert(UISpecialFrames, "GuildBankRestockFrame")
 
 local titleText = frame:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
 titleText:SetPoint("TOPLEFT", frame, "TOPLEFT", 8, -8)
@@ -163,8 +164,18 @@ checklistSection:SetPoint("BOTTOMRIGHT", frame,        "BOTTOMRIGHT", -8, 58)
 
 local categoryGroups = {}  -- catIdx -> Frame  (declared before OnSizeChanged closure)
 
+local HEADER_H = 16
+
+local headerItem = checklistSection:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+headerItem:SetPoint("TOPLEFT", checklistSection, "TOPLEFT", COL_NAME, 0)
+headerItem:SetText("Item")
+
+local headerQty = checklistSection:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+headerQty:SetPoint("TOPRIGHT", checklistSection, "TOPRIGHT", -(QTY_W / 2 + 4), 0)
+headerQty:SetText("Qty")
+
 local scrollFrame = CreateFrame("ScrollFrame", nil, checklistSection, "UIPanelScrollFrameTemplate")
-scrollFrame:SetPoint("TOPLEFT",     checklistSection, "TOPLEFT",     0, 0)
+scrollFrame:SetPoint("TOPLEFT",     checklistSection, "TOPLEFT",     0, -HEADER_H)
 scrollFrame:SetPoint("BOTTOMRIGHT", checklistSection, "BOTTOMRIGHT", -20, ALLNONE_H + 4)
 
 local scrollChild = CreateFrame("Frame", nil, scrollFrame)
