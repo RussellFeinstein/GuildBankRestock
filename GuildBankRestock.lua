@@ -60,8 +60,8 @@ local function BuildSearchStrings()
     for _, ref in ipairs(activeItems) do
         local item = CATEGORIES[ref.catIdx].items[ref.itemIdx]
         local s = Auctionator.API.v1.ConvertToSearchString(ADDON_NAME, {
-            searchString = item.name,
-            isExact      = true,
+            itemID  = item.id,
+            isExact = true,
         })
         list[#list + 1] = s
     end
@@ -73,14 +73,11 @@ local function MapResultRows()
     local dataProvider = AuctionatorShoppingFrame.ResultsListing.dataProvider
     for i = 1, dataProvider:GetCount() do
         local row = dataProvider:GetEntryAt(i)
-        local itemName = C_Item.GetItemInfo(row.itemKey.itemID)
-        if itemName then
-            for listPos, ref in ipairs(activeItems) do
-                local item = CATEGORIES[ref.catIdx].items[ref.itemIdx]
-                if item.name == itemName then
-                    resultRows[listPos] = row
-                    break
-                end
+        for listPos, ref in ipairs(activeItems) do
+            local item = CATEGORIES[ref.catIdx].items[ref.itemIdx]
+            if row.itemKey.itemID == item.id then
+                resultRows[listPos] = row
+                break
             end
         end
     end
@@ -191,6 +188,21 @@ noneBtn:SetSize(58, ALLNONE_H)
 noneBtn:SetPoint("LEFT", allBtn, "RIGHT", 4, 0)
 noneBtn:SetText("None")
 
+local r1Btn = CreateFrame("Button", nil, checklistSection, "UIPanelButtonTemplate")
+r1Btn:SetSize(44, ALLNONE_H)
+r1Btn:SetPoint("LEFT", noneBtn, "RIGHT", 12, 0)
+r1Btn:SetText("R1")
+
+local r2Btn = CreateFrame("Button", nil, checklistSection, "UIPanelButtonTemplate")
+r2Btn:SetSize(44, ALLNONE_H)
+r2Btn:SetPoint("LEFT", r1Btn, "RIGHT", 4, 0)
+r2Btn:SetText("R2")
+
+local bothBtn = CreateFrame("Button", nil, checklistSection, "UIPanelButtonTemplate")
+bothBtn:SetSize(54, ALLNONE_H)
+bothBtn:SetPoint("LEFT", r2Btn, "RIGHT", 4, 0)
+bothBtn:SetText("Both")
+
 -- ============================================================
 -- UI – status text and action button (always visible)
 -- ============================================================
@@ -268,10 +280,10 @@ for catIdx, cat in ipairs(CATEGORIES) do
         label:SetPoint("LEFT", nameFrame, "LEFT", 0, 0)
         label:SetWidth(NAME_W)
         label:SetJustifyH("LEFT")
-        label:SetText(item.name)
+        label:SetText("item:" .. item.id)
 
         local function TryLoadLink(attempts)
-            local _, link = GetItemInfo(item.name)
+            local _, link = GetItemInfo(item.id)
             if link then
                 label:SetText(link)
                 nameFrame.itemLink = link
@@ -350,6 +362,25 @@ noneBtn:SetScript("OnClick", function()
     end
 end)
 
+-- R1 / R2 / Both  (all tabs — only affects items that have a rank field)
+local function ApplyRankFilter(rank)
+    for catIdx, cat in ipairs(CATEGORIES) do
+        for i, item in ipairs(cat.items) do
+            if item.rank then
+                local enable = (rank == nil) or (item.rank == rank)
+                item.enabled = enable
+                if categoryRows[catIdx][i] then
+                    categoryRows[catIdx][i].cb:SetChecked(enable)
+                end
+            end
+        end
+    end
+end
+
+r1Btn:SetScript("OnClick",   function() ApplyRankFilter(1)   end)
+r2Btn:SetScript("OnClick",   function() ApplyRankFilter(2)   end)
+bothBtn:SetScript("OnClick", function() ApplyRankFilter(nil) end)
+
 -- ============================================================
 -- UpdateUI
 -- ============================================================
@@ -382,8 +413,9 @@ local function UpdateUI()
             actionBtn:Enable()
         else
             local item = CATEGORIES[ref.catIdx].items[ref.itemIdx]
-            statusText:SetText("Next: " .. item.name)
-            actionBtn:SetText("Buy " .. item.qty .. "x " .. item.name)
+            local itemName = C_Item.GetItemInfo(item.id) or ("item:" .. item.id)
+            statusText:SetText("Next: " .. itemName)
+            actionBtn:SetText("Buy " .. item.qty .. "x " .. itemName)
             actionBtn:Enable()
         end
 

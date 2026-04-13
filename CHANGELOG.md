@@ -2,6 +2,19 @@
 
 All notable changes to GuildBankRestock will be documented here.
 
+## [0.2.0] - 2026-04-13
+
+### Added
+- R1 / R2 / Both buttons to filter ranked items across all tabs at once
+- Items in category files now support an optional `rank` field; items without one are unaffected by the rank filter
+- Enchants category fully populated (41 items across Rings, Chest, Leg, Head, Shoulder, Boots)
+
+## [0.1.2] - 2026-04-13
+
+### Changed
+- Items are now identified by item ID instead of name, making matching more reliable across patches
+- AH search, result mapping, and UI display all use item ID; names are shown as comments in category files
+
 ## [0.1.1] - 2026-04-13
 
 ### Changed
