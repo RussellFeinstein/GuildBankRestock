@@ -2,6 +2,12 @@
 
 All notable changes to GuildBankRestock will be documented here.
 
+## [0.5.2] - 2026-04-13
+
+### Fixed
+- ESC now prints "Stopped." in all cases, not just when a run is in progress
+- Reset and stop message are now handled in a single OnHide script instead of being duplicated across the stop button and slash command
+
 ## [0.5.1] - 2026-04-13
 
 ### Fixed

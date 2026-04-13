@@ -28,11 +28,14 @@ frame:SetResizable(true)
 frame:SetResizeBounds(280, 200, 700, 900)
 frame:Hide()
 tinsert(UISpecialFrames, "GuildBankRestockFrame")
+
+local suppressStopMessage = false
 frame:SetScript("OnHide", function()
-    if ns.state ~= ns.STATE.IDLE then
+    if not suppressStopMessage then
         ns.Reset()
         ns.Print("Stopped.")
     end
+    suppressStopMessage = false
 end)
 
 ns.frame = frame  -- exposed for Commands.lua
@@ -506,6 +509,7 @@ actionBtn:SetScript("OnClick", function()
     elseif ns.state == ns.STATE.READY then
         local listPos, ref = ns.GetNextItem()
         if not listPos then
+            suppressStopMessage = true
             ns.Reset()
             frame:Hide()
             return
@@ -521,7 +525,5 @@ actionBtn:SetScript("OnClick", function()
 end)
 
 stopBtn:SetScript("OnClick", function()
-    ns.Reset()
     frame:Hide()
-    ns.Print("Stopped.")
 end)

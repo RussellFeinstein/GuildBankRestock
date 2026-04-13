@@ -10,9 +10,7 @@ SLASH_GUILDBANKRESTOCK3 = "/rs"
 SlashCmdList["GUILDBANKRESTOCK"] = function(msg)
     local cmd = msg:lower():match("^%s*(%S*)") or ""
     if cmd == "stop" then
-        ns.Reset()
         ns.frame:Hide()
-        ns.Print("Stopped.")
     else
         ns.frame:Show()
         ns.UpdateUI()
