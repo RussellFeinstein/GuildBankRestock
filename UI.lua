@@ -2,7 +2,7 @@ local ADDON_NAME, ns = ...
 
 local CATEGORIES = ns.CATEGORIES
 
-local FRAME_W         = 340
+local FRAME_W         = 380
 local FRAME_H_FULL    = 400
 local FRAME_H_COMPACT = 90
 
@@ -25,7 +25,7 @@ frame:SetBackdrop({
 })
 frame:SetBackdropColor(0, 0, 0, 0.85)
 frame:SetResizable(true)
-frame:SetResizeBounds(280, 200, 700, 900)
+frame:SetResizeBounds(320, 200, 700, 900)
 frame:Hide()
 tinsert(UISpecialFrames, "GuildBankRestockFrame")
 
@@ -34,6 +34,7 @@ frame:SetScript("OnHide", function()
     if not suppressStopMessage then
         ns.Reset()
         ns.Print("Stopped.")
+        ns.Log("Stopped.", 1, 0.6, 0.6)
     end
     suppressStopMessage = false
 end)
@@ -55,7 +56,8 @@ stopBtn:SetText("X")
 local TAB_H    = 22
 local TAB_GAP  = 2
 local NUM_CATS = #CATEGORIES
-local TAB_W    = math.floor((FRAME_W - 16 - (NUM_CATS - 1) * TAB_GAP) / NUM_CATS)
+local LOG_TAB  = NUM_CATS + 1
+local TAB_W    = math.floor((FRAME_W - 16 - (LOG_TAB - 1) * TAB_GAP) / LOG_TAB)
 
 local tabContainer = CreateFrame("Frame", nil, frame)
 tabContainer:SetPoint("TOPLEFT",  titleText, "BOTTOMLEFT", 0, -6)
@@ -78,6 +80,13 @@ for i, cat in ipairs(CATEGORIES) do
     btn:SetScript("OnClick", function() SelectTab(i) end)
     tabButtons[i] = btn
 end
+
+local logTabBtn = CreateFrame("Button", nil, tabContainer, "UIPanelButtonTemplate")
+logTabBtn:SetSize(TAB_W, TAB_H)
+logTabBtn:SetPoint("TOPLEFT", tabButtons[NUM_CATS], "TOPRIGHT", TAB_GAP, 0)
+logTabBtn:SetText("Log")
+logTabBtn:SetScript("OnClick", function() SelectTab(LOG_TAB) end)
+tabButtons[LOG_TAB] = logTabBtn
 
 -- ============================================================
 -- Checklist section
@@ -144,6 +153,22 @@ local bothBtn = CreateFrame("Button", nil, checklistSection, "UIPanelButtonTempl
 bothBtn:SetSize(54, ALLNONE_H)
 bothBtn:SetPoint("LEFT", r2Btn, "RIGHT", 4, 0)
 bothBtn:SetText("Both")
+
+local logFrame = CreateFrame("ScrollingMessageFrame", "GuildBankRestockLogFrame", checklistSection)
+logFrame:SetPoint("TOPLEFT",     checklistSection, "TOPLEFT",     0, -HEADER_H)
+logFrame:SetPoint("BOTTOMRIGHT", checklistSection, "BOTTOMRIGHT", -4, ALLNONE_H + 4)
+logFrame:SetFading(false)
+logFrame:SetMaxLines(500)
+logFrame:SetFontObject(GameFontNormalSmall)
+logFrame:EnableMouseWheel(true)
+logFrame:SetScript("OnMouseWheel", function(self, delta)
+    if delta > 0 then self:ScrollUp() else self:ScrollDown() end
+end)
+logFrame:Hide()
+
+ns.AppendLogEntry = function(msg, r, g, b)
+    logFrame:AddMessage(msg, r or 1, g or 1, b or 1)
+end
 
 -- ============================================================
 -- Status text, action button, resize grip
@@ -300,10 +325,34 @@ SelectTab = function(idx)
             btn:GetFontString():SetTextColor(1, 1, 1)
         end
     end
-    categoryGroups[currentCatIdx]:Hide()
+
+    if currentCatIdx == LOG_TAB then
+        logFrame:Hide()
+    else
+        categoryGroups[currentCatIdx]:Hide()
+    end
     currentCatIdx = idx
-    categoryGroups[idx]:Show()
-    scrollChild:SetHeight(categoryHeights[idx] or 1)
+
+    if idx == LOG_TAB then
+        headerItem:Hide()
+        headerQty:Hide()
+        allBtn:Hide()
+        noneBtn:Hide()
+        r1Btn:Hide()
+        r2Btn:Hide()
+        bothBtn:Hide()
+        logFrame:Show()
+    else
+        headerItem:Show()
+        headerQty:Show()
+        allBtn:Show()
+        noneBtn:Show()
+        r1Btn:Show()
+        r2Btn:Show()
+        bothBtn:Show()
+        categoryGroups[idx]:Show()
+        scrollChild:SetHeight(categoryHeights[idx] or 1)
+    end
 end
 
 SelectTab(1)
@@ -504,11 +553,13 @@ actionBtn:SetScript("OnClick", function()
         ns.listenerRegistered = true
         ns.state = ns.STATE.SEARCHING
         UpdateUI()
+        ns.Log("Search started: " .. #ns.activeItems .. " items.", 0.8, 0.8, 1)
         AuctionatorShoppingFrame:DoSearch(ns.BuildSearchStrings())
 
     elseif ns.state == ns.STATE.READY then
         local listPos, ref = ns.GetNextItem()
         if not listPos then
+            ns.Log("All items purchased.", 0.4, 1, 0.4)
             suppressStopMessage = true
             ns.Reset()
             frame:Hide()

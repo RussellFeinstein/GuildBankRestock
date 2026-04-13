@@ -20,12 +20,20 @@ ns.pendingItemID      = nil
 ns.pendingQty         = nil
 ns.listenerRegistered = false
 ns.listener           = {}
+ns.log                = {}
 
 -- ============================================================
 -- Helpers
 -- ============================================================
 function ns.Print(msg)
     print("|cff00ccffGuild Bank Restock:|r " .. tostring(msg))
+end
+
+function ns.Log(msg, r, g, b)
+    ns.log[#ns.log + 1] = { msg = msg, r = r, g = g, b = b }
+    if ns.AppendLogEntry then
+        ns.AppendLogEntry(msg, r, g, b)
+    end
 end
 
 local function UnregisterListener()
@@ -141,6 +149,14 @@ function ns.listener:ReceiveEvent(eventName)
     local found = 0
     for _ in pairs(ns.resultRows) do found = found + 1 end
     ns.Print("Search complete. " .. found .. "/" .. #ns.activeItems .. " items found in AH.")
+    ns.Log("Search complete: " .. found .. "/" .. #ns.activeItems .. " found.", 0.4, 1, 0.8)
+    for listPos, ref in ipairs(ns.activeItems) do
+        if not ns.resultRows[listPos] then
+            local item = CATEGORIES[ref.catIdx].items[ref.itemIdx]
+            local name = C_Item.GetItemInfo(item.id) or ("item:" .. item.id)
+            ns.Log("Not found: " .. name, 1, 0.5, 0.5)
+        end
+    end
     ns.state = ns.STATE.READY
     ns.UpdateUI()
 end
@@ -164,6 +180,7 @@ eventFrame:SetScript("OnEvent", function(_, event)
     elseif event == "COMMODITY_PURCHASE_SUCCEEDED" then
         local name = C_Item.GetItemInfo(ns.pendingItemID) or ("item " .. tostring(ns.pendingItemID))
         ns.Print("Purchased " .. tostring(ns.pendingQty) .. "x " .. name .. ".")
+        ns.Log("Bought " .. tostring(ns.pendingQty) .. "x " .. name, 0.4, 1, 0.4)
         ns.boughtIndices[ns.pendingListPos] = true
         ns.pendingListPos = nil
         ns.pendingItemID  = nil
@@ -173,6 +190,7 @@ eventFrame:SetScript("OnEvent", function(_, event)
 
     elseif event == "COMMODITY_PURCHASE_FAILED" then
         ns.Print("Purchase failed — stopping. Check your gold or try again.")
+        ns.Log("Purchase failed — not enough gold or AH error.", 1, 0.3, 0.3)
         ns.Reset()
         ns.UpdateUI()
     end

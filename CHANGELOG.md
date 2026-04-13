@@ -2,6 +2,13 @@
 
 All notable changes to GuildBankRestock will be documented here.
 
+## [0.6.0] - 2026-04-13
+
+### Added
+- Log tab in the main window showing session activity: search started, search complete, items not found, purchases, purchase failures, and stops
+- Log is in-memory only and resets each WoW session
+- Log entries are color-coded by event type; scroll with the mouse wheel
+
 ## [0.5.2] - 2026-04-13
 
 ### Fixed
