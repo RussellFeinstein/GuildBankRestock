@@ -2,6 +2,11 @@
 
 All notable changes to GuildBankRestock will be documented here.
 
+## [0.6.1] - 2026-04-21
+
+### Added
+- bump toc for 12.0.5
+
 ## [0.6.0] - 2026-04-13
 
 ### Added
