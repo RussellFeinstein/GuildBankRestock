@@ -43,7 +43,8 @@ ns.frame = frame  -- exposed for Commands.lua
 
 local titleText = frame:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
 titleText:SetPoint("TOPLEFT", frame, "TOPLEFT", 8, -8)
-titleText:SetText("|cff00ccffGuild Bank Restock|r")
+local _version = GetAddOnMetadata(ADDON_NAME, "Version") or "?"
+titleText:SetText("|cff00ccffGuild Bank Restock|r |cff888888v" .. _version .. "|r")
 
 local stopBtn = CreateFrame("Button", nil, frame, "UIPanelButtonTemplate")
 stopBtn:SetSize(40, 16)

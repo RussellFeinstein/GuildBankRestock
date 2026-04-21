@@ -2,10 +2,16 @@
 
 All notable changes to GuildBankRestock will be documented here.
 
+## [0.6.2] - 2026-04-21
+
+### Added
+- Version number is now visible in the title bar of the main window
+- `/restock version` (or `/restock v`, `/rs v`, etc.) prints the current version to chat
+
 ## [0.6.1] - 2026-04-21
 
 ### Added
-- bump toc for 12.0.5
+- toc bump for 12.0.5
 
 ## [0.6.0] - 2026-04-13
 

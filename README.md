@@ -33,6 +33,7 @@ A World of Warcraft addon that automates buying items from the Auction House usi
 |---|---|
 | `/restock` | Open the Guild Bank Restock window |
 | `/restock stop` | Cancel the current run and close the window |
+| `/restock version` | Print the current addon version to chat (also `/restock v`) |
 | `/bankrestock` | Alias for `/restock` |
 | `/rs` | Alias for `/restock` |
 
