@@ -2,6 +2,16 @@
 
 All notable changes to GuildBankRestock will be documented here.
 
+## [0.7.0] - 2026-04-21
+
+### Added
+- Guild bank scanning: a "Scan for Restock" button appears on the guild bank UI and scans all tabs on demand; scanning is never automatic
+- Bulk mode: buy a set quantity of each selected item regardless of guild bank contents — useful for fresh expansion starts
+- Restock mode: load a named profile with per-item target quantities; the addon compares current bank stock against targets and queues only what is needed
+- Multiple named profiles supported — switch between them with the `<` / `>` buttons, create with `+`, delete with `-`
+- Target and To Buy columns in Restock mode — Target saves to the active profile, To Buy is calculated from the bank scan but can be overridden before starting a run
+- Guild bank scanning logic moved to its own file (`GuildBank.lua`) and profile logic to `Profiles.lua`
+
 ## [0.6.2] - 2026-04-21
 
 ### Added

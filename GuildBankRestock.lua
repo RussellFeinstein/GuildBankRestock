@@ -21,6 +21,11 @@ ns.pendingQty         = nil
 ns.listenerRegistered = false
 ns.listener           = {}
 ns.log                = {}
+ns.guildBankStock     = {}   -- itemID -> total count across all guild bank tabs
+ns.guildBankScanned   = false
+ns.mode               = "bulk"  -- "bulk" or "restock"
+ns.currentProfile     = nil     -- active profile name
+ns.toBuy              = {}      -- catIdx_itemIdx -> qty to buy this run (restock mode)
 
 -- ============================================================
 -- Helpers
@@ -96,8 +101,11 @@ end
 -- ============================================================
 local function LoadSettings()
     if not GuildBankRestockDB then
-        GuildBankRestockDB = { items = {}, rankFilter = nil }
+        GuildBankRestockDB = { items = {}, rankFilter = nil, mode = "bulk", activeProfile = nil, profiles = {} }
     end
+    if not GuildBankRestockDB.profiles then GuildBankRestockDB.profiles = {} end
+    ns.mode           = GuildBankRestockDB.mode or "bulk"
+    ns.currentProfile = GuildBankRestockDB.activeProfile
     for catIdx, cat in ipairs(CATEGORIES) do
         for itemIdx, item in ipairs(cat.items) do
             if not item.header then

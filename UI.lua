@@ -52,6 +52,56 @@ stopBtn:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -4, -4)
 stopBtn:SetText("X")
 
 -- ============================================================
+-- Mode bar  (Bulk / Restock)  +  profile selector
+-- ============================================================
+local modeBar = CreateFrame("Frame", nil, frame)
+modeBar:SetPoint("TOPLEFT",  titleText, "BOTTOMLEFT",  0, -4)
+modeBar:SetPoint("TOPRIGHT", frame,     "TOPRIGHT",   -8,  0)
+modeBar:SetHeight(20)
+
+local bulkBtn = CreateFrame("Button", nil, modeBar, "UIPanelButtonTemplate")
+bulkBtn:SetSize(54, 18)
+bulkBtn:SetPoint("TOPLEFT", modeBar, "TOPLEFT", 0, 0)
+bulkBtn:SetText("Bulk")
+
+local restockModeBtn = CreateFrame("Button", nil, modeBar, "UIPanelButtonTemplate")
+restockModeBtn:SetSize(64, 18)
+restockModeBtn:SetPoint("LEFT", bulkBtn, "RIGHT", 4, 0)
+restockModeBtn:SetText("Restock")
+
+local profileArea = CreateFrame("Frame", nil, modeBar)
+profileArea:SetPoint("LEFT",  restockModeBtn, "RIGHT", 8, 0)
+profileArea:SetPoint("RIGHT", modeBar,        "RIGHT", 0, 0)
+profileArea:SetHeight(18)
+profileArea:Hide()
+
+local deleteProfileBtn = CreateFrame("Button", nil, profileArea, "UIPanelButtonTemplate")
+deleteProfileBtn:SetSize(22, 18)
+deleteProfileBtn:SetPoint("RIGHT", profileArea, "RIGHT", 0, 0)
+deleteProfileBtn:SetText("-")
+
+local newProfileBtn = CreateFrame("Button", nil, profileArea, "UIPanelButtonTemplate")
+newProfileBtn:SetSize(22, 18)
+newProfileBtn:SetPoint("RIGHT", deleteProfileBtn, "LEFT", -4, 0)
+newProfileBtn:SetText("+")
+
+local nextProfileBtn = CreateFrame("Button", nil, profileArea, "UIPanelButtonTemplate")
+nextProfileBtn:SetSize(20, 18)
+nextProfileBtn:SetPoint("RIGHT", newProfileBtn, "LEFT", -4, 0)
+nextProfileBtn:SetText(">")
+
+local prevProfileBtn = CreateFrame("Button", nil, profileArea, "UIPanelButtonTemplate")
+prevProfileBtn:SetSize(20, 18)
+prevProfileBtn:SetPoint("LEFT", profileArea, "LEFT", 0, 0)
+prevProfileBtn:SetText("<")
+
+local profileNameText = profileArea:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+profileNameText:SetPoint("LEFT",  prevProfileBtn, "RIGHT",  4, 0)
+profileNameText:SetPoint("RIGHT", nextProfileBtn,  "LEFT", -4, 0)
+profileNameText:SetJustifyH("CENTER")
+profileNameText:SetText("(no profile)")
+
+-- ============================================================
 -- Category tabs
 -- ============================================================
 local TAB_H    = 22
@@ -61,7 +111,7 @@ local LOG_TAB  = NUM_CATS + 1
 local TAB_W    = math.floor((FRAME_W - 16 - (LOG_TAB - 1) * TAB_GAP) / LOG_TAB)
 
 local tabContainer = CreateFrame("Frame", nil, frame)
-tabContainer:SetPoint("TOPLEFT",  titleText, "BOTTOMLEFT", 0, -6)
+tabContainer:SetPoint("TOPLEFT",  modeBar, "BOTTOMLEFT", 0, -4)
 tabContainer:SetPoint("TOPRIGHT", frame,     "TOPRIGHT",  -8, 0)
 tabContainer:SetHeight(TAB_H)
 
@@ -96,6 +146,10 @@ local ALLNONE_H = 22
 local COL_CB    = 2
 local COL_NAME  = 24
 local QTY_W     = 34
+local TARGET_W  = 36
+local TOBUY_W   = 36
+local NAME_RIGHT_BULK    = -(QTY_W + 8)
+local NAME_RIGHT_RESTOCK = -(TARGET_W + TOBUY_W + 12)
 local ROW_H     = 20
 local SUBCAT_H  = 18
 
@@ -114,6 +168,16 @@ headerItem:SetText("Item")
 local headerQty = checklistSection:CreateFontString(nil, "OVERLAY", "GameFontNormal")
 headerQty:SetPoint("TOPRIGHT", checklistSection, "TOPRIGHT", -(QTY_W / 2 + 4), 0)
 headerQty:SetText("Qty")
+
+local headerTarget = checklistSection:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+headerTarget:SetPoint("TOPRIGHT", checklistSection, "TOPRIGHT", -(TOBUY_W + TARGET_W / 2 + 8), 0)
+headerTarget:SetText("Target")
+headerTarget:Hide()
+
+local headerToBuy = checklistSection:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+headerToBuy:SetPoint("TOPRIGHT", checklistSection, "TOPRIGHT", -(TOBUY_W / 2 + 4), 0)
+headerToBuy:SetText("To Buy")
+headerToBuy:Hide()
 
 local scrollFrame = CreateFrame("ScrollFrame", nil, checklistSection, "UIPanelScrollFrameTemplate")
 scrollFrame:SetPoint("TOPLEFT",     checklistSection, "TOPLEFT",     0, -HEADER_H)
@@ -254,7 +318,7 @@ for catIdx, cat in ipairs(CATEGORIES) do
 
             local nameFrame = CreateFrame("Frame", nil, rowFrame)
             nameFrame:SetPoint("TOPLEFT",  rowFrame, "TOPLEFT",  COL_NAME,     0)
-            nameFrame:SetPoint("TOPRIGHT", rowFrame, "TOPRIGHT", -(QTY_W + 8), 0)
+            nameFrame:SetPoint("TOPRIGHT", rowFrame, "TOPRIGHT", NAME_RIGHT_BULK, 0)
             nameFrame:SetHeight(ROW_H)
             nameFrame:EnableMouse(true)
 
@@ -305,7 +369,51 @@ for catIdx, cat in ipairs(CATEGORIES) do
                 ns.SaveItem(catIdx, i)
             end)
 
-            categoryRows[catIdx][i] = { rowFrame = rowFrame, cb = cb, qtyBox = qtyBox }
+            local toBuyBox  -- forward-declared so targetBox's closure can reference it
+
+            local targetBox = CreateFrame("EditBox", nil, rowFrame, "InputBoxTemplate")
+            targetBox:SetSize(TARGET_W, 16)
+            targetBox:SetPoint("RIGHT", rowFrame, "TOPRIGHT", -(TOBUY_W + 8), -ROW_H / 2)
+            targetBox:SetNumeric(true)
+            targetBox:SetMaxLetters(3)
+            targetBox:SetAutoFocus(false)
+            targetBox:SetText("0")
+            targetBox:Hide()
+            targetBox:SetScript("OnEnterPressed", function(self) self:ClearFocus() end)
+            targetBox:SetScript("OnEscapePressed", function(self)
+                self:SetText(tostring(ns.GetProfileTarget(catIdx, i)))
+                self:ClearFocus()
+            end)
+            targetBox:SetScript("OnEditFocusLost", function(self)
+                local v = math.max(0, tonumber(self:GetText()) or 0)
+                self:SetText(tostring(v))
+                ns.SetProfileTarget(catIdx, i, v)
+                local inBank = ns.guildBankScanned and (ns.guildBankStock[CATEGORIES[catIdx].items[i].id] or 0) or 0
+                local needed = math.max(0, v - inBank)
+                ns.toBuy[catIdx .. "_" .. i] = needed
+                if toBuyBox then toBuyBox:SetText(tostring(needed)) end
+            end)
+
+            toBuyBox = CreateFrame("EditBox", nil, rowFrame, "InputBoxTemplate")
+            toBuyBox:SetSize(TOBUY_W, 16)
+            toBuyBox:SetPoint("RIGHT", rowFrame, "TOPRIGHT", -4, -ROW_H / 2)
+            toBuyBox:SetNumeric(true)
+            toBuyBox:SetMaxLetters(3)
+            toBuyBox:SetAutoFocus(false)
+            toBuyBox:SetText("0")
+            toBuyBox:Hide()
+            toBuyBox:SetScript("OnEnterPressed", function(self) self:ClearFocus() end)
+            toBuyBox:SetScript("OnEscapePressed", function(self)
+                self:SetText(tostring(ns.toBuy[catIdx .. "_" .. i] or 0))
+                self:ClearFocus()
+            end)
+            toBuyBox:SetScript("OnEditFocusLost", function(self)
+                local v = math.max(0, tonumber(self:GetText()) or 0)
+                self:SetText(tostring(v))
+                ns.toBuy[catIdx .. "_" .. i] = v
+            end)
+
+            categoryRows[catIdx][i] = { rowFrame = rowFrame, cb = cb, qtyBox = qtyBox, nameFrame = nameFrame, targetBox = targetBox, toBuyBox = toBuyBox }
             yPos = yPos + ROW_H
         end
     end
@@ -337,6 +445,8 @@ SelectTab = function(idx)
     if idx == LOG_TAB then
         headerItem:Hide()
         headerQty:Hide()
+        headerTarget:Hide()
+        headerToBuy:Hide()
         allBtn:Hide()
         noneBtn:Hide()
         r1Btn:Hide()
@@ -345,7 +455,15 @@ SelectTab = function(idx)
         logFrame:Show()
     else
         headerItem:Show()
-        headerQty:Show()
+        if ns.mode == "restock" then
+            headerQty:Hide()
+            headerTarget:Show()
+            headerToBuy:Show()
+        else
+            headerQty:Show()
+            headerTarget:Hide()
+            headerToBuy:Hide()
+        end
         allBtn:Show()
         noneBtn:Show()
         r1Btn:Show()
@@ -453,6 +571,133 @@ bothBtn:SetScript("OnClick", function() ApplyRankFilter(nil); SetRankButtonActiv
 
 SetRankButtonActive(nil)  -- Both is the default state
 
+-- ============================================================
+-- Mode switching + profile UI
+-- ============================================================
+local function SetMode(mode)
+    ns.mode = mode
+    GuildBankRestockDB.mode = mode
+
+    if mode == "bulk" then
+        bulkBtn:GetFontString():SetTextColor(1, 0.82, 0)
+        restockModeBtn:GetFontString():SetTextColor(1, 1, 1)
+        profileArea:Hide()
+        headerQty:Show()
+        headerTarget:Hide()
+        headerToBuy:Hide()
+    else
+        bulkBtn:GetFontString():SetTextColor(1, 1, 1)
+        restockModeBtn:GetFontString():SetTextColor(1, 0.82, 0)
+        profileArea:Show()
+        headerQty:Hide()
+        headerTarget:Show()
+        headerToBuy:Show()
+        ns.RecalculateToBuy()
+    end
+
+    for catIdx in ipairs(CATEGORIES) do
+        for _, row in ipairs(categoryRows[catIdx]) do
+            if not row.headerFrame then
+                if mode == "bulk" then
+                    row.qtyBox:Show()
+                    row.targetBox:Hide()
+                    row.toBuyBox:Hide()
+                    row.nameFrame:ClearAllPoints()
+                    row.nameFrame:SetPoint("TOPLEFT",  row.rowFrame, "TOPLEFT",  COL_NAME,       0)
+                    row.nameFrame:SetPoint("TOPRIGHT", row.rowFrame, "TOPRIGHT", NAME_RIGHT_BULK, 0)
+                else
+                    row.qtyBox:Hide()
+                    row.targetBox:Show()
+                    row.toBuyBox:Show()
+                    row.nameFrame:ClearAllPoints()
+                    row.nameFrame:SetPoint("TOPLEFT",  row.rowFrame, "TOPLEFT",  COL_NAME,           0)
+                    row.nameFrame:SetPoint("TOPRIGHT", row.rowFrame, "TOPRIGHT", NAME_RIGHT_RESTOCK,  0)
+                end
+            end
+        end
+    end
+end
+
+ns.SetMode = SetMode
+
+ns.RefreshToBuyUI = function()
+    for catIdx, cat in ipairs(CATEGORIES) do
+        for itemIdx, item in ipairs(cat.items) do
+            if not item.header then
+                local row = categoryRows[catIdx][itemIdx]
+                if row and row.toBuyBox then
+                    row.toBuyBox:SetText(tostring(ns.toBuy[catIdx .. "_" .. itemIdx] or 0))
+                end
+            end
+        end
+    end
+end
+
+ns.RefreshProfileUI = function()
+    local names = ns.GetProfileNames()
+    profileNameText:SetText(ns.currentProfile or "(no profile)")
+    local hasMany = #names > 1
+    if hasMany then prevProfileBtn:Enable() nextProfileBtn:Enable()
+    else prevProfileBtn:Disable() nextProfileBtn:Disable() end
+    if ns.currentProfile then deleteProfileBtn:Enable() else deleteProfileBtn:Disable() end
+    for catIdx, cat in ipairs(CATEGORIES) do
+        for itemIdx, item in ipairs(cat.items) do
+            if not item.header then
+                local row = categoryRows[catIdx][itemIdx]
+                if row and row.targetBox then
+                    row.targetBox:SetText(tostring(ns.GetProfileTarget(catIdx, itemIdx)))
+                end
+            end
+        end
+    end
+end
+
+StaticPopupDialogs["GUILDBANKRESTOCK_NEW_PROFILE"] = {
+    text = "Enter a name for the new profile:",
+    button1 = "Create",
+    button2 = "Cancel",
+    hasEditBox = true,
+    OnAccept = function(self)
+        local name = self.editBox:GetText():match("^%s*(.-)%s*$")
+        if name ~= "" then ns.CreateProfile(name) end
+    end,
+    EditBoxOnEnterPressed = function(self)
+        local name = self:GetText():match("^%s*(.-)%s*$")
+        if name ~= "" then ns.CreateProfile(name) end
+        self:GetParent():Hide()
+    end,
+    timeout = 0,
+    whileDead = true,
+    hideOnEscape = true,
+    preferredIndex = 3,
+}
+
+bulkBtn:SetScript("OnClick",        function() SetMode("bulk")    end)
+restockModeBtn:SetScript("OnClick", function() SetMode("restock") end)
+
+prevProfileBtn:SetScript("OnClick", function()
+    local names = ns.GetProfileNames()
+    if #names < 2 then return end
+    local idx = 1
+    for i, n in ipairs(names) do if n == ns.currentProfile then idx = i; break end end
+    idx = idx - 1; if idx < 1 then idx = #names end
+    ns.SetActiveProfile(names[idx])
+end)
+
+nextProfileBtn:SetScript("OnClick", function()
+    local names = ns.GetProfileNames()
+    if #names < 2 then return end
+    local idx = 1
+    for i, n in ipairs(names) do if n == ns.currentProfile then idx = i; break end end
+    idx = idx % #names + 1
+    ns.SetActiveProfile(names[idx])
+end)
+
+newProfileBtn:SetScript("OnClick",    function() StaticPopup_Show("GUILDBANKRESTOCK_NEW_PROFILE") end)
+deleteProfileBtn:SetScript("OnClick", function()
+    if ns.currentProfile then ns.DeleteProfile(ns.currentProfile) end
+end)
+
 -- Called by GuildBankRestock.lua after SavedVariables are loaded.
 -- Refreshes all widgets from CATEGORIES and restores the saved rank filter.
 ns.ApplySettingsToUI = function()
@@ -470,6 +715,10 @@ ns.ApplySettingsToUI = function()
     local rank = GuildBankRestockDB and GuildBankRestockDB.rankFilter or nil
     ApplyRankFilter(rank)
     SetRankButtonActive(rank)
+    ns.currentProfile = GuildBankRestockDB and GuildBankRestockDB.activeProfile or nil
+    local savedMode = (GuildBankRestockDB and GuildBankRestockDB.mode) or "bulk"
+    SetMode(savedMode)
+    if savedMode == "restock" then ns.RefreshProfileUI() end
 end
 
 -- ============================================================
@@ -477,6 +726,7 @@ end
 -- ============================================================
 local function UpdateUI()
     if ns.state == ns.STATE.IDLE then
+        modeBar:Show()
         tabContainer:Show()
         checklistSection:Show()
         frame:SetHeight(savedFrameHeight or FRAME_H_FULL)
@@ -485,6 +735,7 @@ local function UpdateUI()
         actionBtn:Enable()
 
     elseif ns.state == ns.STATE.SEARCHING then
+        modeBar:Hide()
         savedFrameHeight = frame:GetHeight()
         tabContainer:Hide()
         checklistSection:Hide()
@@ -494,6 +745,7 @@ local function UpdateUI()
         actionBtn:Disable()
 
     elseif ns.state == ns.STATE.READY then
+        modeBar:Hide()
         tabContainer:Hide()
         checklistSection:Hide()
         frame:SetHeight(FRAME_H_COMPACT)
@@ -506,11 +758,12 @@ local function UpdateUI()
             local item = CATEGORIES[ref.catIdx].items[ref.itemIdx]
             local itemName = C_Item.GetItemInfo(item.id) or ("item:" .. item.id)
             statusText:SetText("Next: " .. itemName)
-            actionBtn:SetText("Buy " .. item.qty .. "x " .. itemName)
+            actionBtn:SetText("Buy " .. (ref.needed or item.qty) .. "x " .. itemName)
             actionBtn:Enable()
         end
 
     elseif ns.state == ns.STATE.CONFIRMING then
+        modeBar:Hide()
         tabContainer:Hide()
         checklistSection:Hide()
         frame:SetHeight(FRAME_H_COMPACT)
@@ -538,16 +791,47 @@ actionBtn:SetScript("OnClick", function()
         wipe(ns.activeItems)
         wipe(ns.boughtIndices)
         wipe(ns.resultRows)
-        for catIdx, cat in ipairs(CATEGORIES) do
-            for itemIdx, item in ipairs(cat.items) do
-                if item.enabled and not item.header then
-                    ns.activeItems[#ns.activeItems + 1] = { catIdx = catIdx, itemIdx = itemIdx }
+        if ns.mode == "restock" then
+            if not ns.currentProfile then
+                ns.Print("No profile selected — create one with the + button.")
+                return
+            end
+            local skipped = 0
+            for catIdx, cat in ipairs(CATEGORIES) do
+                for itemIdx, item in ipairs(cat.items) do
+                    if item.enabled and not item.header then
+                        local key = catIdx .. "_" .. itemIdx
+                        local row = categoryRows[catIdx][itemIdx]
+                        local qty = (row and row.toBuyBox and tonumber(row.toBuyBox:GetText())) or (ns.toBuy[key] or 0)
+                        ns.toBuy[key] = qty
+                        if qty > 0 then
+                            ns.activeItems[#ns.activeItems + 1] = { catIdx = catIdx, itemIdx = itemIdx, needed = qty }
+                        else
+                            skipped = skipped + 1
+                        end
+                    end
                 end
             end
-        end
-        if #ns.activeItems == 0 then
-            ns.Print("No items selected — enable at least one.")
-            return
+            if #ns.activeItems == 0 then
+                ns.Print("Nothing to buy — guild bank is fully stocked for this profile.")
+                ns.Log("Guild bank fully stocked. No items queued.", 0.4, 1, 0.4)
+                return
+            end
+            if skipped > 0 then
+                ns.Log(skipped .. " item(s) skipped — already at target stock.", 1, 0.82, 0)
+            end
+        else
+            for catIdx, cat in ipairs(CATEGORIES) do
+                for itemIdx, item in ipairs(cat.items) do
+                    if item.enabled and not item.header then
+                        ns.activeItems[#ns.activeItems + 1] = { catIdx = catIdx, itemIdx = itemIdx, needed = item.qty }
+                    end
+                end
+            end
+            if #ns.activeItems == 0 then
+                ns.Print("No items selected — enable at least one.")
+                return
+            end
         end
         Auctionator.EventBus:RegisterSource(ns.listener, ADDON_NAME)
         Auctionator.EventBus:Register(ns.listener, { Auctionator.Shopping.Tab.Events.SearchEnd })
@@ -569,7 +853,7 @@ actionBtn:SetScript("OnClick", function()
         local item = CATEGORIES[ref.catIdx].items[ref.itemIdx]
         ns.pendingListPos = listPos
         ns.pendingItemID  = ns.resultRows[listPos].itemKey.itemID
-        ns.pendingQty     = item.qty
+        ns.pendingQty     = ref.needed or item.qty
         ns.state = ns.STATE.CONFIRMING
         UpdateUI()
         C_AuctionHouse.StartCommoditiesPurchase(ns.pendingItemID, ns.pendingQty)

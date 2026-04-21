@@ -16,16 +16,32 @@ A World of Warcraft addon that automates buying items from the Auction House usi
    ```
 3. Launch WoW and enable the addon in the AddOns menu on the character select screen
 
-## Usage
+## Modes
 
-1. Open the Auction House and switch to the **Auctionator Shopping** tab
-2. Type `/restock` in chat to open the Guild Bank Restock window
-3. Use the category tabs (Gems, Enchants, Potions, Flasks, Oils) to browse and select items
-4. Check the items you want to buy and set the quantity for each
-5. Optionally use **R1** / **R2** / **Both** to filter ranked items (enchants, etc.) across all tabs at once
-6. Click **Start** — the addon will search the AH for all selected items across all categories
-7. For each item found, click **Buy** to purchase it
-8. Repeat until all items are purchased, then the window closes automatically
+The addon has two operating modes, toggled with the **Bulk** and **Restock** buttons in the main window.
+
+### Bulk mode
+Buys a fixed quantity of each selected item regardless of what is already in the guild bank. Good for restocking at the start of a new expansion when the bank is empty.
+
+1. Type `/restock` to open the window and select **Bulk**
+2. Check the items you want and set the **Qty** for each
+3. Open the AH and switch to the **Auctionator Shopping** tab
+4. Click **Start** — the addon searches and queues purchases for every enabled item
+
+### Restock mode
+Scans the guild bank to determine what is actually needed before buying anything. Requires visiting the guild bank first.
+
+1. Open the guild bank and click the **Scan for Restock** button that appears on the bank UI — the addon queries all tabs and prints "Guild bank scanned." when done
+2. Type `/restock` to open the window and select **Restock**
+3. Create or select a profile using the `+` / `-` / `<` / `>` controls next to the mode buttons
+4. Set a **Target** quantity per item — this is the stock level you want to maintain in the bank
+5. The **To Buy** column is calculated automatically (`Target − in bank`) but can be edited before starting
+6. Optionally use **R1** / **R2** / **Both** to filter ranked items across all tabs
+7. Open the AH and switch to the **Auctionator Shopping** tab
+8. Click **Start** — the addon buys only what is needed to reach your targets; items already fully stocked are skipped
+
+### Profiles
+Profiles store per-item target quantities and are saved between sessions. You can have multiple profiles — for example, one per guild or one per content type. Use the `+` button to create a profile, `<` / `>` to cycle between them, and `-` to delete the active one.
 
 ### Slash Commands
 
@@ -64,7 +80,8 @@ Categories that use subcategory headers (e.g. Enchants) can include `{ header = 
 ## Notes
 
 - Only commodity-type items (stackable) are supported by the underlying AH API
-- Start searches all enabled items across all category tabs in one run
+- The Auctionator Shopping tab must be open before clicking Start — the addon builds and runs the search itself, no manual shopping list setup required
+- In Restock mode, click **Scan for Restock** on the guild bank UI before heading to the AH — scanning is always manual and never happens automatically
 - The addon will stop automatically if a purchase fails (e.g. insufficient gold)
 - The window is resizable, movable, and can be closed with ESC
-- Item enabled states, quantities, and the active rank filter are saved automatically and restored on login
+- Item states, quantities, rank filter, active mode, and active profile are all saved automatically and restored on login

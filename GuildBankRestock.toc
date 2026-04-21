@@ -2,7 +2,7 @@
 ## Title: Guild Bank Restock
 ## Notes: Restocks guild bank items from the AH via Auctionator. Use /restock to open.
 ## Dependencies: Auctionator
-## Version: 0.6.2
+## Version: 0.7.0
 ## SavedVariables: GuildBankRestockDB
 
 Categories\Gems.lua
@@ -12,5 +12,7 @@ Categories\Flasks.lua
 Categories\Oils.lua
 
 GuildBankRestock.lua
+Profiles.lua
+GuildBank.lua
 UI.lua
 Commands.lua
