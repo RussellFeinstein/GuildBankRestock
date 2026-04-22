@@ -1,0 +1,30 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "*"
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Fetch Ace3 libraries
+        run: bash fetch-libs.sh
+
+      - name: Build release zip
+        run: |
+          cd ..
+          zip -r GuildBankRestock.zip GuildBankRestock \
+            --exclude "GuildBankRestock/.git/*" \
+            --exclude "GuildBankRestock/.github/*" \
+            --exclude "GuildBankRestock/fetch-libs.sh" \
+            --exclude "GuildBankRestock/.gitignore"
+
+      - name: Create GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: ../GuildBankRestock.zip
+          generate_release_notes: true
