@@ -134,8 +134,9 @@ local function LoadSettings()
             if not item.header then
                 local saved = db.items[catIdx .. "_" .. itemIdx]
                 if saved then
-                    item.enabled = saved.enabled
-                    item.qty     = saved.qty
+                    item.enabled  = saved.enabled
+                    item.qty      = saved.qty
+                    item.maxPrice = saved.maxPrice
                 end
             end
         end
@@ -145,8 +146,9 @@ end
 function ns.SaveItem(catIdx, itemIdx)
     local item = CATEGORIES[catIdx].items[itemIdx]
     ns.addon.db.global.items[catIdx .. "_" .. itemIdx] = {
-        enabled = item.enabled,
-        qty     = item.qty,
+        enabled  = item.enabled,
+        qty      = item.qty,
+        maxPrice = item.maxPrice,
     }
 end
 

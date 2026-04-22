@@ -2,6 +2,11 @@
 
 All notable changes to GuildBankRestock will be documented here.
 
+## [0.8.1] - 2026-04-21
+
+### Added
+- Per-item maximum price: each item row in the checklist now has a **Max g** field. If the AH price per unit exceeds this limit the item is automatically skipped and a message is printed to chat and the Log tab explaining why (e.g. "Skipped Vibrant Shard: 45.00g/ea exceeds max 30g."). Leave blank or set to 0 for no limit. Value is saved between sessions.
+
 ## [0.8.0] - 2026-04-21
 
 ### Changed

@@ -87,6 +87,16 @@ When the budget is reached mid-run, the addon pauses and returns to the main win
 
 The budget is saved between sessions so you don't need to re-enter it each time.
 
+## Max price per item
+
+Each item row has a **Max g** column. Enter a gold ceiling for that item; if the current AH unit price exceeds it, the item is automatically skipped and a message is printed to chat and the Log tab:
+
+```
+Guild Bank Restock: Skipped Vibrant Shard: 45.00g/ea exceeds max 30g.
+```
+
+Leave the field blank (or set it to `0`) for no limit. This is useful for avoiding market-reset prices where someone has listed an item far above its normal value. The value is saved between sessions.
+
 ## Development
 
 The `Libs/` directory is gitignored. To populate it for local development, run:

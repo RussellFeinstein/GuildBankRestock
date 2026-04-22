@@ -231,25 +231,30 @@ BuildCategoryContent = function(catIdx)
 
     local itemHeader = AceGUI:Create("Label")
     itemHeader:SetText("|cffffd100Item|r")
-    itemHeader:SetRelativeWidth(ns.mode == "restock" and 0.60 or 0.72)
+    itemHeader:SetRelativeWidth(ns.mode == "restock" and 0.48 or 0.55)
     headerRow:AddChild(itemHeader)
 
     if ns.mode == "restock" then
         local th = AceGUI:Create("Label")
         th:SetText("|cffffd100Target|r")
-        th:SetRelativeWidth(0.20)
+        th:SetRelativeWidth(0.17)
         headerRow:AddChild(th)
 
         local bh = AceGUI:Create("Label")
         bh:SetText("|cffffd100To Buy|r")
-        bh:SetRelativeWidth(0.20)
+        bh:SetRelativeWidth(0.17)
         headerRow:AddChild(bh)
     else
         local qh = AceGUI:Create("Label")
         qh:SetText("|cffffd100Qty|r")
-        qh:SetRelativeWidth(0.28)
+        qh:SetRelativeWidth(0.20)
         headerRow:AddChild(qh)
     end
+
+    local mgh = AceGUI:Create("Label")
+    mgh:SetText("|cffffd100Max g|r")
+    mgh:SetRelativeWidth(0.18)
+    headerRow:AddChild(mgh)
 
     tabGroup:AddChild(headerRow)
 
@@ -351,7 +356,7 @@ BuildCategoryContent = function(catIdx)
             rowGroup:SetFullWidth(true)
 
             local cb = AceGUI:Create("CheckBox")
-            cb:SetRelativeWidth(ns.mode == "restock" and 0.60 or 0.72)
+            cb:SetRelativeWidth(ns.mode == "restock" and 0.48 or 0.55)
             cb:SetValue(item.enabled)
             cb:SetLabel("item:" .. item.id)
 
@@ -382,14 +387,14 @@ BuildCategoryContent = function(catIdx)
 
             if ns.mode == "restock" then
                 local targetBox = AceGUI:Create("EditBox")
-                targetBox:SetRelativeWidth(0.20)
+                targetBox:SetRelativeWidth(0.17)
                 targetBox:SetLabel("")
                 targetBox:SetText(tostring(ns.GetProfileTarget(catIdx, i)))
                 targetBox:DisableButton(true)
                 targetBox:SetMaxLetters(3)
 
                 local toBuyBox = AceGUI:Create("EditBox")
-                toBuyBox:SetRelativeWidth(0.20)
+                toBuyBox:SetRelativeWidth(0.17)
                 toBuyBox:SetLabel("")
                 toBuyBox:SetText(tostring(ns.toBuy[catIdx .. "_" .. i] or 0))
                 toBuyBox:DisableButton(true)
@@ -415,7 +420,7 @@ BuildCategoryContent = function(catIdx)
                 rowGroup:AddChild(toBuyBox)
             else
                 local qty = AceGUI:Create("EditBox")
-                qty:SetRelativeWidth(0.28)
+                qty:SetRelativeWidth(0.20)
                 qty:SetLabel("")
                 qty:SetText(tostring(item.qty))
                 qty:SetMaxLetters(3)
@@ -429,6 +434,21 @@ BuildCategoryContent = function(catIdx)
                 end)
                 rowGroup:AddChild(qty)
             end
+
+            local maxPriceBox = AceGUI:Create("EditBox")
+            maxPriceBox:SetRelativeWidth(0.18)
+            maxPriceBox:SetLabel("")
+            maxPriceBox:SetText(item.maxPrice and item.maxPrice > 0 and tostring(item.maxPrice) or "")
+            maxPriceBox:SetMaxLetters(6)
+            maxPriceBox:DisableButton(true)
+            maxPriceBox:SetCallback("OnEnterPressed", function(_, _, text)
+                local v = tonumber(text) or 0
+                if v < 0 then v = 0 end
+                item.maxPrice = v > 0 and v or nil
+                maxPriceBox:SetText(v > 0 and tostring(v) or "")
+                ns.SaveItem(catIdx, i)
+            end)
+            rowGroup:AddChild(maxPriceBox)
 
             scroll:AddChild(rowGroup)
         end
@@ -541,6 +561,18 @@ UpdateUI = function()
             local item = CATEGORIES[ref.catIdx].items[ref.itemIdx]
             local itemName = C_Item.GetItemInfo(item.id) or ("item:" .. item.id)
             local qty = ref.needed or item.qty
+
+            local row = ns.resultRows[listPos]
+            if item.maxPrice and item.maxPrice > 0 and row and row.minPrice and row.minPrice > item.maxPrice * 10000 then
+                local actualGold = string.format("%.2f", row.minPrice / 10000)
+                local msg = "Skipped " .. itemName .. ": " .. actualGold .. "g/ea exceeds max " .. item.maxPrice .. "g."
+                ns.Print(msg)
+                ns.Log(msg, 1, 0.82, 0)
+                ns.boughtIndices[listPos] = true
+                UpdateUI()
+                return
+            end
+
             frame:SetStatusText("Next: " .. itemName)
             ShowStatusView(
                 "Next: " .. itemName,
