@@ -2,6 +2,22 @@
 
 All notable changes to GuildBankRestock will be documented here.
 
+## [0.8.0] - 2026-04-21
+
+### Changed
+- Migrated to Ace3 framework: AceAddon (lifecycle), AceDB (SavedVariables), AceConsole (slash commands), AceEvent (WoW events), AceGUI (UI widgets)
+- Rebuilt UI with AceGUI: tabs, item checklist, and buttons are now standard Ace3 widgets
+- `Commands.lua` removed — slash commands absorbed into the core addon lifecycle
+- Raw event frame replaced by AceEvent; raw SavedVariables access replaced by AceDB
+- Tab content is rebuilt dynamically on selection; rank filter rebuilds the tab instead of repositioning rows
+- Budget field moved inline into the button bar (beside the rank filter buttons and Start)
+- Existing settings (items, quantities, rank filter, mode, profiles, budget) migrate automatically to the AceDB format
+
+### Added
+- `fetch-libs.sh` — downloads Ace3 libraries into `Libs/` for local development (idempotent, skips libraries already present)
+- `.gitignore` — excludes the fetched `Libs/` directory from version control
+- Item link tooltips on checkbox hover in the checklist
+
 ## [0.7.1] - 2026-04-21
 
 ### Added

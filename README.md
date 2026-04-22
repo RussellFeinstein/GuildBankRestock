@@ -79,7 +79,7 @@ Categories that use subcategory headers (e.g. Enchants) can include `{ header = 
 
 ## Budget
 
-A per-run gold limit can be set in the `Budget (g):` field above the Start button. Set it to `0` (the default) for no limit.
+A per-run gold limit can be set in the `Budget (g):` field in the button bar (next to the rank filter buttons). Set it to `0` (the default) for no limit.
 
 When the budget is reached mid-run, the addon pauses and returns to the main window. It prints:
 - Total gold spent for the run (broken down to gold/silver/copper)
@@ -87,8 +87,19 @@ When the budget is reached mid-run, the addon pauses and returns to the main win
 
 The budget is saved between sessions so you don't need to re-enter it each time.
 
+## Development
+
+The `Libs/` directory is gitignored. To populate it for local development, run:
+
+```bash
+bash fetch-libs.sh
+```
+
+This downloads the required Ace3 libraries (LibStub, CallbackHandler-1.0, AceAddon-3.0, AceDB-3.0, AceConsole-3.0, AceEvent-3.0, AceGUI-3.0) from GitHub. The script is idempotent — it skips any library already present. Packaged releases bundle the libraries automatically.
+
 ## Notes
 
+- Uses [Ace3](https://www.wowace.com/projects/ace3) (AceAddon, AceDB, AceConsole, AceEvent, AceGUI) — libraries are bundled with the addon; run `fetch-libs.sh` for development
 - Only commodity-type items (stackable) are supported by the underlying AH API
 - The Auctionator Shopping tab must be open before clicking Start — the addon builds and runs the search itself, no manual shopping list setup required
 - In Restock mode, click **Scan for Restock** on the guild bank UI before heading to the AH — scanning is always manual and never happens automatically

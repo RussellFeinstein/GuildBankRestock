@@ -2,17 +2,28 @@
 ## Title: Guild Bank Restock
 ## Notes: Restocks guild bank items from the AH via Auctionator. Use /restock to open.
 ## Dependencies: Auctionator
-## Version: 0.7.1
+## OptionalDeps: Ace3
+## Version: 0.8.0
 ## SavedVariables: GuildBankRestockDB
 
+# Libraries
+Libs\LibStub\LibStub.lua
+Libs\CallbackHandler-1.0\CallbackHandler-1.0.lua
+Libs\AceAddon-3.0\AceAddon-3.0.lua
+Libs\AceDB-3.0\AceDB-3.0.lua
+Libs\AceConsole-3.0\AceConsole-3.0.lua
+Libs\AceEvent-3.0\AceEvent-3.0.lua
+Libs\AceGUI-3.0\AceGUI-3.0.xml
+
+# Item data
 Categories\Gems.lua
 Categories\Enchants.lua
 Categories\Potions.lua
 Categories\Flasks.lua
 Categories\Oils.lua
 
+# Core
 GuildBankRestock.lua
 Profiles.lua
 GuildBank.lua
 UI.lua
-Commands.lua

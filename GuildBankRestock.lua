@@ -3,6 +3,29 @@ local ADDON_NAME, ns = ...
 local CATEGORIES = ns.CATEGORIES
 
 -- ============================================================
+-- Ace3 addon object
+-- ============================================================
+local GBR = LibStub("AceAddon-3.0"):NewAddon(ADDON_NAME,
+    "AceConsole-3.0",
+    "AceEvent-3.0"
+)
+ns.addon = GBR
+
+-- ============================================================
+-- AceDB defaults
+-- ============================================================
+local defaults = {
+    global = {
+        items         = {},
+        rankFilter    = nil,
+        mode          = "bulk",
+        activeProfile = nil,
+        profiles      = {},
+        budget        = 0,
+    },
+}
+
+-- ============================================================
 -- State
 -- ============================================================
 ns.STATE = {
@@ -12,22 +35,22 @@ ns.STATE = {
     CONFIRMING = "CONFIRMING",
 }
 ns.state              = ns.STATE.IDLE
-ns.activeItems        = {}   -- { catIdx, itemIdx } for items in this run
-ns.resultRows         = {}   -- listPos -> AH row
-ns.boughtIndices      = {}   -- listPos -> true
+ns.activeItems        = {}
+ns.resultRows         = {}
+ns.boughtIndices      = {}
 ns.pendingListPos     = nil
 ns.pendingItemID      = nil
 ns.pendingQty         = nil
 ns.listenerRegistered = false
 ns.listener           = {}
 ns.log                = {}
-ns.guildBankStock     = {}   -- itemID -> total count across all guild bank tabs
+ns.guildBankStock     = {}
 ns.guildBankScanned   = false
-ns.mode               = "bulk"  -- "bulk" or "restock"
-ns.currentProfile     = nil     -- active profile name
-ns.toBuy              = {}      -- catIdx_itemIdx -> qty to buy this run (restock mode)
-ns.budget             = 0       -- gold limit per run (0 = no limit)
-ns.runStartMoney      = 0       -- copper at the start of the current run
+ns.mode               = "bulk"
+ns.currentProfile     = nil
+ns.toBuy              = {}
+ns.budget             = 0
+ns.runStartMoney      = 0
 
 -- ============================================================
 -- Helpers
@@ -99,20 +122,17 @@ function ns.GetNextItem()
 end
 
 -- ============================================================
--- SavedVariables  (GuildBankRestockDB)
+-- SavedVariables (via AceDB)
 -- ============================================================
 local function LoadSettings()
-    if not GuildBankRestockDB then
-        GuildBankRestockDB = { items = {}, rankFilter = nil, mode = "bulk", activeProfile = nil, profiles = {}, budget = 0 }
-    end
-    if not GuildBankRestockDB.profiles then GuildBankRestockDB.profiles = {} end
-    ns.mode           = GuildBankRestockDB.mode or "bulk"
-    ns.currentProfile = GuildBankRestockDB.activeProfile
-    ns.budget         = GuildBankRestockDB.budget or 0
+    local db = ns.addon.db.global
+    ns.mode           = db.mode or "bulk"
+    ns.currentProfile = db.activeProfile
+    ns.budget         = db.budget or 0
     for catIdx, cat in ipairs(CATEGORIES) do
         for itemIdx, item in ipairs(cat.items) do
             if not item.header then
-                local saved = GuildBankRestockDB.items[catIdx .. "_" .. itemIdx]
+                local saved = db.items[catIdx .. "_" .. itemIdx]
                 if saved then
                     item.enabled = saved.enabled
                     item.qty     = saved.qty
@@ -123,33 +143,147 @@ local function LoadSettings()
 end
 
 function ns.SaveItem(catIdx, itemIdx)
-    if not GuildBankRestockDB then
-        GuildBankRestockDB = { items = {}, rankFilter = nil }
-    end
     local item = CATEGORIES[catIdx].items[itemIdx]
-    GuildBankRestockDB.items[catIdx .. "_" .. itemIdx] = { enabled = item.enabled, qty = item.qty }
+    ns.addon.db.global.items[catIdx .. "_" .. itemIdx] = {
+        enabled = item.enabled,
+        qty     = item.qty,
+    }
 end
 
 function ns.SaveRankFilter(rank)
-    if not GuildBankRestockDB then
-        GuildBankRestockDB = { items = {}, rankFilter = nil }
-    end
-    GuildBankRestockDB.rankFilter = rank
+    ns.addon.db.global.rankFilter = rank
 end
 
--- Runs after SavedVariables are available; ns.ApplySettingsToUI is set by UI.lua.
-local initFrame = CreateFrame("Frame")
-initFrame:RegisterEvent("ADDON_LOADED")
-initFrame:SetScript("OnEvent", function(_, _, addonName)
-    if addonName ~= ADDON_NAME then return end
+-- ============================================================
+-- Addon lifecycle
+-- ============================================================
+function GBR:OnInitialize()
+    -- Migrate pre-Ace3 SavedVariables (detect by presence of items table but no profileKeys)
+    local legacyData = nil
+    if GuildBankRestockDB
+       and type(GuildBankRestockDB.items) == "table"
+       and not GuildBankRestockDB.profileKeys then
+        legacyData = {
+            items         = GuildBankRestockDB.items,
+            rankFilter    = GuildBankRestockDB.rankFilter,
+            mode          = GuildBankRestockDB.mode,
+            activeProfile = GuildBankRestockDB.activeProfile,
+            profiles      = GuildBankRestockDB.profiles,
+            budget        = GuildBankRestockDB.budget,
+        }
+        GuildBankRestockDB = nil
+    end
+
+    self.db = LibStub("AceDB-3.0"):New("GuildBankRestockDB", defaults, true)
+
+    if legacyData then
+        local g = self.db.global
+        for k, v in pairs(legacyData.items or {}) do
+            g.items[k] = v
+        end
+        g.rankFilter    = legacyData.rankFilter
+        g.mode          = legacyData.mode or "bulk"
+        g.activeProfile = legacyData.activeProfile
+        g.budget        = legacyData.budget or 0
+        if type(legacyData.profiles) == "table" then
+            for name, data in pairs(legacyData.profiles) do
+                g.profiles[name] = data
+            end
+        end
+    end
+
     LoadSettings()
     if ns.ApplySettingsToUI then ns.ApplySettingsToUI() end
-    initFrame:UnregisterEvent("ADDON_LOADED")
-end)
+
+    self:RegisterChatCommand("restock",     "HandleSlashCommand")
+    self:RegisterChatCommand("bankrestock", "HandleSlashCommand")
+    self:RegisterChatCommand("rs",          "HandleSlashCommand")
+end
+
+function GBR:OnEnable()
+    self:RegisterEvent("AUCTION_HOUSE_THROTTLED_SYSTEM_READY")
+    self:RegisterEvent("COMMODITY_PURCHASE_SUCCEEDED")
+    self:RegisterEvent("COMMODITY_PURCHASE_FAILED")
+end
 
 -- ============================================================
--- Auctionator EventBus listener  (search completion)
--- ns.UpdateUI is set by UI.lua after it loads.
+-- Slash commands  (absorbs Commands.lua)
+-- ============================================================
+function GBR:HandleSlashCommand(msg)
+    local cmd = msg:lower():match("^%s*(%S*)") or ""
+    if cmd == "stop" then
+        ns.frame.frame:Hide()
+    elseif cmd == "version" or cmd == "v" then
+        local v = GetAddOnMetadata(ADDON_NAME, "Version") or "?"
+        ns.Print("Version " .. v)
+    else
+        ns.frame.frame:Show()
+        ns.UpdateUI()
+    end
+end
+
+-- ============================================================
+-- AceEvent handlers
+-- ============================================================
+function GBR:AUCTION_HOUSE_THROTTLED_SYSTEM_READY()
+    if ns.state ~= ns.STATE.CONFIRMING then return end
+    if ns.pendingItemID and ns.pendingQty then
+        C_AuctionHouse.ConfirmCommoditiesPurchase(ns.pendingItemID, ns.pendingQty)
+    end
+end
+
+function GBR:COMMODITY_PURCHASE_SUCCEEDED()
+    if ns.state ~= ns.STATE.CONFIRMING then return end
+    local name = C_Item.GetItemInfo(ns.pendingItemID) or ("item " .. tostring(ns.pendingItemID))
+    ns.Print("Purchased " .. tostring(ns.pendingQty) .. "x " .. name .. ".")
+    ns.Log("Bought " .. tostring(ns.pendingQty) .. "x " .. name, 0.4, 1, 0.4)
+    ns.boughtIndices[ns.pendingListPos] = true
+    ns.pendingListPos = nil
+    ns.pendingItemID  = nil
+    ns.pendingQty     = nil
+
+    if ns.budget > 0 then
+        local spent = ns.runStartMoney - GetMoney()
+        if spent >= ns.budget * 10000 then
+            local g = math.floor(spent / 10000)
+            local s = math.floor((spent % 10000) / 100)
+            local c = spent % 100
+            local summary = string.format("Budget reached: %dg %ds %dc spent.", g, s, c)
+            ns.Print(summary)
+            ns.Log(summary, 1, 0.82, 0)
+            local remaining = {}
+            for listPos, ref in ipairs(ns.activeItems) do
+                if not ns.boughtIndices[listPos] then
+                    local item = CATEGORIES[ref.catIdx].items[ref.itemIdx]
+                    remaining[#remaining + 1] = C_Item.GetItemInfo(item.id) or ("item:" .. item.id)
+                end
+            end
+            if #remaining > 0 then
+                ns.Print("Not purchased: " .. table.concat(remaining, ", "))
+                for _, itemName in ipairs(remaining) do
+                    ns.Log("Not purchased: " .. itemName, 1, 0.5, 0.5)
+                end
+            end
+            ns.Reset()
+            ns.UpdateUI()
+            return
+        end
+    end
+
+    ns.state = ns.STATE.READY
+    ns.UpdateUI()
+end
+
+function GBR:COMMODITY_PURCHASE_FAILED()
+    if ns.state ~= ns.STATE.CONFIRMING then return end
+    ns.Print("Purchase failed — stopping. Check your gold or try again.")
+    ns.Log("Purchase failed — not enough gold or AH error.", 1, 0.3, 0.3)
+    ns.Reset()
+    ns.UpdateUI()
+end
+
+-- ============================================================
+-- Auctionator EventBus listener
 -- ============================================================
 function ns.listener:ReceiveEvent(eventName)
     if eventName ~= Auctionator.Shopping.Tab.Events.SearchEnd then return end
@@ -171,67 +305,3 @@ function ns.listener:ReceiveEvent(eventName)
     ns.state = ns.STATE.READY
     ns.UpdateUI()
 end
-
--- ============================================================
--- WoW event frame  (AH purchase flow)
--- ============================================================
-local eventFrame = CreateFrame("Frame")
-eventFrame:RegisterEvent("AUCTION_HOUSE_THROTTLED_SYSTEM_READY")
-eventFrame:RegisterEvent("COMMODITY_PURCHASE_SUCCEEDED")
-eventFrame:RegisterEvent("COMMODITY_PURCHASE_FAILED")
-
-eventFrame:SetScript("OnEvent", function(_, event)
-    if ns.state ~= ns.STATE.CONFIRMING then return end
-
-    if event == "AUCTION_HOUSE_THROTTLED_SYSTEM_READY" then
-        if ns.pendingItemID and ns.pendingQty then
-            C_AuctionHouse.ConfirmCommoditiesPurchase(ns.pendingItemID, ns.pendingQty)
-        end
-
-    elseif event == "COMMODITY_PURCHASE_SUCCEEDED" then
-        local name = C_Item.GetItemInfo(ns.pendingItemID) or ("item " .. tostring(ns.pendingItemID))
-        ns.Print("Purchased " .. tostring(ns.pendingQty) .. "x " .. name .. ".")
-        ns.Log("Bought " .. tostring(ns.pendingQty) .. "x " .. name, 0.4, 1, 0.4)
-        ns.boughtIndices[ns.pendingListPos] = true
-        ns.pendingListPos = nil
-        ns.pendingItemID  = nil
-        ns.pendingQty     = nil
-
-        if ns.budget > 0 then
-            local spent = ns.runStartMoney - GetMoney()
-            if spent >= ns.budget * 10000 then
-                local g = math.floor(spent / 10000)
-                local s = math.floor((spent % 10000) / 100)
-                local c = spent % 100
-                local summary = string.format("Budget reached: %dg %ds %dc spent.", g, s, c)
-                ns.Print(summary)
-                ns.Log(summary, 1, 0.82, 0)
-                local remaining = {}
-                for listPos, ref in ipairs(ns.activeItems) do
-                    if not ns.boughtIndices[listPos] then
-                        local item = CATEGORIES[ref.catIdx].items[ref.itemIdx]
-                        remaining[#remaining + 1] = C_Item.GetItemInfo(item.id) or ("item:" .. item.id)
-                    end
-                end
-                if #remaining > 0 then
-                    ns.Print("Not purchased: " .. table.concat(remaining, ", "))
-                    for _, itemName in ipairs(remaining) do
-                        ns.Log("Not purchased: " .. itemName, 1, 0.5, 0.5)
-                    end
-                end
-                ns.Reset()
-                ns.UpdateUI()
-                return
-            end
-        end
-
-        ns.state = ns.STATE.READY
-        ns.UpdateUI()
-
-    elseif event == "COMMODITY_PURCHASE_FAILED" then
-        ns.Print("Purchase failed — stopping. Check your gold or try again.")
-        ns.Log("Purchase failed — not enough gold or AH error.", 1, 0.3, 0.3)
-        ns.Reset()
-        ns.UpdateUI()
-    end
-end)

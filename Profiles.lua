@@ -7,9 +7,13 @@ local _, ns = ...
 -- declared in GuildBankRestock.lua.
 -- ============================================================
 
+local function db()
+    return ns.addon.db.global
+end
+
 function ns.GetProfileNames()
     local names = {}
-    for name in pairs(GuildBankRestockDB.profiles or {}) do
+    for name in pairs(db().profiles or {}) do
         names[#names + 1] = name
     end
     table.sort(names)
@@ -17,39 +21,39 @@ function ns.GetProfileNames()
 end
 
 function ns.CreateProfile(name)
-    if not GuildBankRestockDB.profiles then GuildBankRestockDB.profiles = {} end
-    GuildBankRestockDB.profiles[name] = GuildBankRestockDB.profiles[name] or {}
+    if not db().profiles then db().profiles = {} end
+    db().profiles[name] = db().profiles[name] or {}
     ns.SetActiveProfile(name)
 end
 
 function ns.DeleteProfile(name)
-    if GuildBankRestockDB.profiles then
-        GuildBankRestockDB.profiles[name] = nil
+    if db().profiles then
+        db().profiles[name] = nil
     end
     local names = ns.GetProfileNames()
-    ns.SetActiveProfile(names[1])  -- nil if no profiles remain
+    ns.SetActiveProfile(names[1])
 end
 
 function ns.SetActiveProfile(name)
-    ns.currentProfile = name
-    GuildBankRestockDB.activeProfile = name
+    ns.currentProfile        = name
+    db().activeProfile       = name
     ns.RecalculateToBuy()
     if ns.RefreshProfileUI then ns.RefreshProfileUI() end
 end
 
 function ns.GetProfileTarget(catIdx, itemIdx)
     if not ns.currentProfile then return 0 end
-    local profile = GuildBankRestockDB.profiles and GuildBankRestockDB.profiles[ns.currentProfile]
+    local profile = db().profiles and db().profiles[ns.currentProfile]
     return profile and (profile[catIdx .. "_" .. itemIdx] or 0) or 0
 end
 
 function ns.SetProfileTarget(catIdx, itemIdx, qty)
     if not ns.currentProfile then return end
-    if not GuildBankRestockDB.profiles then GuildBankRestockDB.profiles = {} end
-    if not GuildBankRestockDB.profiles[ns.currentProfile] then
-        GuildBankRestockDB.profiles[ns.currentProfile] = {}
+    if not db().profiles then db().profiles = {} end
+    if not db().profiles[ns.currentProfile] then
+        db().profiles[ns.currentProfile] = {}
     end
-    GuildBankRestockDB.profiles[ns.currentProfile][catIdx .. "_" .. itemIdx] = qty > 0 and qty or nil
+    db().profiles[ns.currentProfile][catIdx .. "_" .. itemIdx] = qty > 0 and qty or nil
 end
 
 function ns.RecalculateToBuy()
