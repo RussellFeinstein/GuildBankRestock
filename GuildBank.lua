@@ -6,6 +6,7 @@ local _, ns = ...
 -- ============================================================
 
 local scanBtn
+local scanBar
 
 local function DoScan()
     wipe(ns.guildBankStock)
@@ -38,20 +39,62 @@ local function DoScan()
     end)
 end
 
-local eventFrame = CreateFrame("Frame")
-eventFrame:RegisterEvent("GUILDBANKFRAME_OPENED")
-eventFrame:RegisterEvent("GUILDBANKFRAME_CLOSED")
-eventFrame:SetScript("OnEvent", function(_, event)
-    if event == "GUILDBANKFRAME_OPENED" then
-        if not scanBtn then
-            scanBtn = CreateFrame("Button", nil, GuildBankFrame, "UIPanelButtonTemplate")
-            scanBtn:SetSize(120, 22)
-            scanBtn:SetPoint("BOTTOMLEFT", GuildBankFrame, "BOTTOMLEFT", 8, 8)
-            scanBtn:SetText("Scan for Restock")
-            scanBtn:SetScript("OnClick", DoScan)
-        end
-        scanBtn:Show()
-    elseif event == "GUILDBANKFRAME_CLOSED" then
-        if scanBtn then scanBtn:Hide() end
+local function OnBankOpened()
+    if not GuildBankFrame then
+        ns.Print("GuildBankRestock: GuildBankFrame not found — scan button unavailable.")
+        return
     end
-end)
+    if not scanBar then
+        scanBar = CreateFrame("Frame", "GuildBankRestockBar", UIParent, "BackdropTemplate")
+        scanBar:SetSize(136, 30)
+        scanBar:SetFrameStrata("MEDIUM")
+        scanBar:SetBackdrop({
+            bgFile   = "Interface\\DialogFrame\\UI-DialogBox-Background",
+            edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
+            tile = true, tileSize = 16, edgeSize = 8,
+            insets = { left = 2, right = 2, top = 2, bottom = 2 },
+        })
+        scanBar:SetBackdropColor(0.1, 0.1, 0.1, 0.9)
+        scanBar:SetBackdropBorderColor(0.4, 0.4, 0.4, 0.8)
+
+        scanBtn = CreateFrame("Button", nil, scanBar, "UIPanelButtonTemplate")
+        scanBtn:SetSize(124, 22)
+        scanBtn:SetPoint("CENTER", scanBar, "CENTER")
+        scanBtn:SetText("Scan for Restock")
+        scanBtn:SetScript("OnClick", DoScan)
+    end
+    scanBar:ClearAllPoints()
+    scanBar:SetPoint("TOPRIGHT", GuildBankFrame, "BOTTOMRIGHT", 0, -2)
+    scanBar:Show()
+end
+
+local function OnBankClosed()
+    if scanBar then scanBar:Hide() end
+end
+
+local eventFrame = CreateFrame("Frame")
+
+-- WoW 10.0.2+: guild bank open/close moved to PlayerInteractionManager
+if Enum and Enum.PlayerInteractionType and Enum.PlayerInteractionType.GuildBanker then
+    eventFrame:RegisterEvent("PLAYER_INTERACTION_MANAGER_FRAME_SHOW")
+    eventFrame:RegisterEvent("PLAYER_INTERACTION_MANAGER_FRAME_HIDE")
+    eventFrame:SetScript("OnEvent", function(_, event, interactionType)
+        if interactionType ~= Enum.PlayerInteractionType.GuildBanker then return end
+        if event == "PLAYER_INTERACTION_MANAGER_FRAME_SHOW" then
+            OnBankOpened()
+        else
+            OnBankClosed()
+        end
+    end)
+else
+    -- Fallback for older API
+    eventFrame:RegisterEvent("GUILDBANKFRAME_OPENED")
+    eventFrame:RegisterEvent("GUILDBANKFRAME_CLOSED")
+    eventFrame:SetScript("OnEvent", function(_, event)
+        if event == "GUILDBANKFRAME_OPENED" then
+            OnBankOpened()
+        else
+            OnBankClosed()
+        end
+    end)
+end

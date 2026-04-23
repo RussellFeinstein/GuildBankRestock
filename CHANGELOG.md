@@ -2,6 +2,11 @@
 
 All notable changes to GuildBankRestock will be documented here.
 
+## [0.8.5] - 2026-04-23
+
+### Fixed
+- "Scan for Restock" button was not appearing on the guild bank UI — `GUILDBANKFRAME_OPENED` was replaced by `PLAYER_INTERACTION_MANAGER_FRAME_SHOW` in WoW 10.0.2+; switched to the new event with a fallback for older clients
+
 ## [0.8.4] - 2026-04-23
 
 ### Fixed

@@ -196,7 +196,7 @@ BuildCategoryContent = function(catIdx)
 
         local names = ns.GetProfileNames()
 
-        AddBtn(profileRow, "<", 30, function()
+        AddBtn(profileRow, "<<", nil, function()
             if #names < 2 then return end
             local idx = 1
             for i, n in ipairs(names) do if n == ns.currentProfile then idx = i break end end
@@ -209,7 +209,7 @@ BuildCategoryContent = function(catIdx)
         profileLabel:SetWidth(110)
         profileRow:AddChild(profileLabel)
 
-        AddBtn(profileRow, ">", 30, function()
+        AddBtn(profileRow, ">>", nil, function()
             if #names < 2 then return end
             local idx = 1
             for i, n in ipairs(names) do if n == ns.currentProfile then idx = i break end end
@@ -217,11 +217,11 @@ BuildCategoryContent = function(catIdx)
             ns.SetActiveProfile(names[idx])
         end)
 
-        AddBtn(profileRow, "+", 30, function()
+        AddBtn(profileRow, "New", nil, function()
             StaticPopup_Show("GUILDBANKRESTOCK_NEW_PROFILE")
         end)
 
-        local delBtn = AddBtn(profileRow, "-", 30, function()
+        local delBtn = AddBtn(profileRow, "Delete", nil, function()
             if ns.currentProfile then ns.DeleteProfile(ns.currentProfile) end
         end)
         delBtn:SetDisabled(not ns.currentProfile)
