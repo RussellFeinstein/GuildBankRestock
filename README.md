@@ -115,4 +115,4 @@ This downloads the required Ace3 libraries (LibStub, CallbackHandler-1.0, AceAdd
 - In Restock mode, click **Scan for Restock** on the guild bank UI before heading to the AH — scanning is always manual and never happens automatically
 - The addon will stop automatically if a purchase fails (e.g. insufficient gold)
 - The window is resizable, movable, and can be closed with ESC
-- Item states, quantities, rank filter, active mode, and active profile are all saved automatically and restored on login
+- Item states, quantities, rank filter, active mode, active profile, and the activity log are all saved automatically and restored on login

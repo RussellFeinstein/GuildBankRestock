@@ -8,6 +8,9 @@ local CATEGORIES = ns.CATEGORIES
 local frame                -- AceGUI Frame widget
 local tabGroup             -- AceGUI TabGroup (recreated on state transitions)
 local logFrame             -- raw ScrollingMessageFrame
+local logScrollbar         -- Slider frame for log scrolling
+local logExportBtn         -- Button frame for log export
+local logScrollbarUpdating = false
 local currentCatIdx    = 1
 local currentRankFilter    = nil
 local suppressStopMessage  = false
@@ -25,9 +28,18 @@ logFrame = CreateFrame("ScrollingMessageFrame", "GuildBankRestockLogFrame", UIPa
 logFrame:SetFading(false)
 logFrame:SetMaxLines(500)
 logFrame:SetFontObject(GameFontNormalSmall)
+logFrame:SetJustifyH("LEFT")
+logFrame:SetInsertMode("TOP")
 logFrame:EnableMouseWheel(true)
 logFrame:SetScript("OnMouseWheel", function(self, delta)
     if delta > 0 then self:ScrollUp() else self:ScrollDown() end
+    if logScrollbar then
+        logScrollbarUpdating = true
+        local max = self:GetMaxScrollRange() or 0
+        logScrollbar:SetMinMaxValues(0, max)
+        logScrollbar:SetValue(max - self:GetScrollOffset())
+        logScrollbarUpdating = false
+    end
 end)
 logFrame:Hide()
 
@@ -40,6 +52,14 @@ local function DetachLogFrame()
         logFrame:Hide()
         logFrame:SetParent(UIParent)
     end
+    if logScrollbar then
+        logScrollbar:Hide()
+        logScrollbar:SetParent(UIParent)
+    end
+    if logExportBtn then
+        logExportBtn:Hide()
+        logExportBtn:SetParent(UIParent)
+    end
 end
 
 -- ============================================================
@@ -51,7 +71,7 @@ StaticPopupDialogs["GUILDBANKRESTOCK_NEW_PROFILE"] = {
     button2 = "Cancel",
     hasEditBox = true,
     OnAccept = function(self)
-        local name = self.editBox:GetText():match("^%s*(.-)%s*$")
+        local name = self.EditBox:GetText():match("^%s*(.-)%s*$")
         if name ~= "" then ns.CreateProfile(name) end
     end,
     EditBoxOnEnterPressed = function(self)
@@ -236,18 +256,23 @@ BuildCategoryContent = function(catIdx)
 
     local itemHeader = AceGUI:Create("Label")
     itemHeader:SetText("|cffffd100Item|r")
-    itemHeader:SetRelativeWidth(ns.mode == "restock" and 0.48 or 0.55)
+    itemHeader:SetRelativeWidth(ns.mode == "restock" and 0.40 or 0.55)
     headerRow:AddChild(itemHeader)
 
     if ns.mode == "restock" then
         local th = AceGUI:Create("Label")
         th:SetText("|cffffd100Target|r")
-        th:SetRelativeWidth(0.17)
+        th:SetRelativeWidth(0.11)
         headerRow:AddChild(th)
+
+        local ibh = AceGUI:Create("Label")
+        ibh:SetText("|cffffd100In Bank|r")
+        ibh:SetRelativeWidth(0.11)
+        headerRow:AddChild(ibh)
 
         local bh = AceGUI:Create("Label")
         bh:SetText("|cffffd100To Buy|r")
-        bh:SetRelativeWidth(0.17)
+        bh:SetRelativeWidth(0.11)
         headerRow:AddChild(bh)
     else
         local qh = AceGUI:Create("Label")
@@ -258,10 +283,8 @@ BuildCategoryContent = function(catIdx)
 
     local mgh = AceGUI:Create("Label")
     mgh:SetText("|cffffd100Max g|r")
-    mgh:SetRelativeWidth(0.18)
+    mgh:SetRelativeWidth(0.17)
     headerRow:AddChild(mgh)
-
-    tabGroup:AddChild(headerRow)
 
     -- ── Button bar row 1: Select All / None / Rank filters ──
     local btnBar = AceGUI:Create("SimpleGroup")
@@ -335,12 +358,15 @@ BuildCategoryContent = function(catIdx)
 
     tabGroup:AddChild(searchBar)
 
+    tabGroup:AddChild(headerRow)
+
     -- ── Scrollable item list (fills remaining height) ─────────
     local scroll = AceGUI:Create("ScrollFrame")
     scroll:SetLayout("List")
     scroll:SetFullWidth(true)
-    scroll:SetFullHeight(true)
     tabGroup:AddChild(scroll)
+    -- List layout only sets TOPLEFT; add BOTTOMRIGHT so the scroll fills remaining height
+    scroll.frame:SetPoint("BOTTOMRIGHT", tabGroup.content, "BOTTOMRIGHT", 0, 0)
 
     for i, item in ipairs(cat.items) do
         if item.header then
@@ -367,7 +393,7 @@ BuildCategoryContent = function(catIdx)
             rowGroup:SetFullWidth(true)
 
             local cb = AceGUI:Create("CheckBox")
-            cb:SetRelativeWidth(ns.mode == "restock" and 0.48 or 0.55)
+            cb:SetRelativeWidth(ns.mode == "restock" and 0.40 or 0.55)
             cb:SetValue(item.enabled)
             cb:SetLabel("item:" .. item.id)
 
@@ -398,14 +424,22 @@ BuildCategoryContent = function(catIdx)
 
             if ns.mode == "restock" then
                 local targetBox = AceGUI:Create("EditBox")
-                targetBox:SetRelativeWidth(0.17)
+                targetBox:SetRelativeWidth(0.11)
                 targetBox:SetLabel("")
                 targetBox:SetText(tostring(ns.GetProfileTarget(catIdx, i)))
                 targetBox:DisableButton(true)
                 targetBox:SetMaxLetters(3)
 
+                local inBankBox = AceGUI:Create("EditBox")
+                inBankBox:SetRelativeWidth(0.11)
+                inBankBox:SetLabel("")
+                inBankBox:SetText(tostring(ns.guildBankScanned and (ns.guildBankStock[item.id] or 0) or 0))
+                inBankBox:DisableButton(true)
+                inBankBox:SetMaxLetters(3)
+                inBankBox:SetDisabled(true)
+
                 local toBuyBox = AceGUI:Create("EditBox")
-                toBuyBox:SetRelativeWidth(0.17)
+                toBuyBox:SetRelativeWidth(0.11)
                 toBuyBox:SetLabel("")
                 toBuyBox:SetText(tostring(ns.toBuy[catIdx .. "_" .. i] or 0))
                 toBuyBox:DisableButton(true)
@@ -428,6 +462,7 @@ BuildCategoryContent = function(catIdx)
                 end)
 
                 rowGroup:AddChild(targetBox)
+                rowGroup:AddChild(inBankBox)
                 rowGroup:AddChild(toBuyBox)
             else
                 local qty = AceGUI:Create("EditBox")
@@ -447,7 +482,7 @@ BuildCategoryContent = function(catIdx)
             end
 
             local maxPriceBox = AceGUI:Create("EditBox")
-            maxPriceBox:SetRelativeWidth(0.18)
+            maxPriceBox:SetRelativeWidth(ns.mode == "restock" and 0.17 or 0.18)
             maxPriceBox:SetLabel("")
             maxPriceBox:SetText(item.maxPrice and item.maxPrice > 0 and tostring(item.maxPrice) or "")
             maxPriceBox:SetMaxLetters(6)
@@ -471,11 +506,95 @@ end
 -- ============================================================
 BuildLogContent = function()
     tabGroup:ReleaseChildren()
-    logFrame:SetParent(tabGroup.content)
+    DetachLogFrame()
+
+    local content = tabGroup.content
+
+    -- Create scrollbar once
+    if not logScrollbar then
+        logScrollbar = CreateFrame("Slider", "GBRLogScrollBar", UIParent, "UIPanelScrollBarTemplate")
+        logScrollbar:SetWidth(16)
+        logScrollbar:SetMinMaxValues(0, 0)
+        logScrollbar:SetValueStep(1)
+        logScrollbar:SetObeyStepOnDrag(true)
+
+        local function SyncScrollbar()
+            logScrollbarUpdating = true
+            local max = logFrame:GetMaxScrollRange() or 0
+            logScrollbar:SetMinMaxValues(0, max)
+            logScrollbar:SetValue(max - logFrame:GetScrollOffset())
+            logScrollbarUpdating = false
+        end
+
+        _G["GBRLogScrollBarScrollUpButton"]:SetScript("OnClick", function()
+            logFrame:ScrollUp()
+            SyncScrollbar()
+        end)
+        _G["GBRLogScrollBarScrollDownButton"]:SetScript("OnClick", function()
+            logFrame:ScrollDown()
+            SyncScrollbar()
+        end)
+
+        logScrollbar:SetScript("OnValueChanged", function(self, value)
+            if logScrollbarUpdating then return end
+            local _, max = self:GetMinMaxValues()
+            logFrame:SetScrollOffset(math.floor((max - value) + 0.5))
+        end)
+    end
+
+    -- Create export button once
+    if not logExportBtn then
+        logExportBtn = CreateFrame("Button", nil, UIParent, "UIPanelButtonTemplate")
+        logExportBtn:SetSize(80, 22)
+        logExportBtn:SetText("Export")
+        logExportBtn:SetScript("OnClick", function()
+            local lines = {}
+            for _, entry in ipairs(ns.log) do
+                lines[#lines + 1] = entry.msg
+            end
+            local exportFrame = AceGUI:Create("Frame")
+            exportFrame:SetTitle("Guild Bank Restock — Log Export")
+            exportFrame:SetWidth(520)
+            exportFrame:SetHeight(420)
+            exportFrame:SetLayout("Fill")
+            local editBox = AceGUI:Create("MultiLineEditBox")
+            editBox:SetLabel("Select all (Ctrl+A) and copy (Ctrl+C):")
+            editBox:SetText(table.concat(lines, "\n"))
+            editBox:DisableButton(true)
+            editBox:SetFullWidth(true)
+            editBox:SetFullHeight(true)
+            exportFrame:AddChild(editBox)
+            C_Timer.After(0.05, function()
+                editBox.editBox:SetFocus()
+                editBox.editBox:HighlightText()
+            end)
+        end)
+    end
+
+    -- Position log frame (leave room for scrollbar on right, export button on top)
+    logFrame:SetParent(content)
     logFrame:ClearAllPoints()
-    logFrame:SetPoint("TOPLEFT",     tabGroup.content, "TOPLEFT",     4, -4)
-    logFrame:SetPoint("BOTTOMRIGHT", tabGroup.content, "BOTTOMRIGHT", -4,  4)
+    logFrame:SetPoint("TOPLEFT",     content, "TOPLEFT",     4, -30)
+    logFrame:SetPoint("BOTTOMRIGHT", content, "BOTTOMRIGHT", -20,  4)
     logFrame:Show()
+
+    -- Position scrollbar
+    logScrollbar:SetParent(content)
+    logScrollbar:ClearAllPoints()
+    logScrollbar:SetPoint("TOPRIGHT",    content, "TOPRIGHT",    0, -16)
+    logScrollbar:SetPoint("BOTTOMRIGHT", content, "BOTTOMRIGHT", 0,  16)
+    logScrollbar:Show()
+
+    -- Position export button
+    logExportBtn:SetParent(content)
+    logExportBtn:ClearAllPoints()
+    logExportBtn:SetPoint("TOPLEFT", content, "TOPLEFT", 4, -4)
+    logExportBtn:Show()
+
+    -- Sync scrollbar to current position
+    local max = logFrame:GetMaxScrollRange() or 0
+    logScrollbar:SetMinMaxValues(0, max)
+    logScrollbar:SetValue(max - logFrame:GetScrollOffset())
 end
 
 -- ============================================================
@@ -504,6 +623,18 @@ ShowTabView = function()
             BuildCategoryContent(currentCatIdx)
         end
     end)
+
+    local _origBuildTabs = tabGroup.BuildTabs
+    tabGroup.BuildTabs = function(self, ...)
+        _origBuildTabs(self, ...)
+        local logTabBtn = self.tabs[LOG_TAB]
+        if logTabBtn then
+            logTabBtn:ClearAllPoints()
+            logTabBtn:SetPoint("TOPRIGHT", self.frame, "TOPRIGHT", 0, -7)
+        end
+    end
+    tabGroup:BuildTabs()
+
     frame:AddChild(tabGroup)
 
     local tabVal = currentCatIdx == LOG_TAB and "log" or tostring(currentCatIdx)

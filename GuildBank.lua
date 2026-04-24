@@ -7,36 +7,68 @@ local _, ns = ...
 
 local scanBtn
 local scanBar
+local scanEventFrame = CreateFrame("Frame")
 
 local function DoScan()
+    ns.Print("Scanning guild bank...")
     wipe(ns.guildBankStock)
+
     local numTabs = GetNumGuildBankTabs()
-    for tab = 1, numTabs do
-        QueryGuildBankTab(tab)
-    end
-    C_Timer.After(0.5, function()
-        for tab = 1, GetNumGuildBankTabs() do
-            for slot = 1, 98 do
-                local link = GetGuildBankItemLink(tab, slot)
-                if link then
-                    local itemID = tonumber(link:match("item:(%d+)"))
-                    if itemID then
-                        local _, _, count = GetGuildBankItemInfo(tab, slot)
-                        ns.guildBankStock[itemID] = (ns.guildBankStock[itemID] or 0) + (count or 1)
-                    end
+    local queue = {}
+    for i = 1, numTabs do queue[i] = i end
+
+    local currentTab = nil
+
+    local function ReadTab()
+        for slot = 1, 98 do
+            local link = GetGuildBankItemLink(currentTab, slot)
+            if link then
+                local itemID = tonumber(link:match("item:(%d+)"))
+                if itemID then
+                    local _, _, count = GetGuildBankItemInfo(currentTab, slot)
+                    ns.guildBankStock[itemID] = (ns.guildBankStock[itemID] or 0) + (count or 1)
                 end
             end
         end
-        ns.guildBankScanned = true
-        if ns.RecalculateToBuy then ns.RecalculateToBuy() end
-        ns.Print("Guild bank scanned.")
-        if scanBtn then
-            scanBtn:SetText("Scanned!")
-            C_Timer.After(2, function()
-                if scanBtn then scanBtn:SetText("Scan for Restock") end
-            end)
+    end
+
+    local function ScanNext()
+        if #queue == 0 then
+            scanEventFrame:UnregisterEvent("GUILDBANKBAGSLOTS_CHANGED")
+            scanEventFrame:SetScript("OnEvent", nil)
+            ns.guildBankScanned = true
+            ns.Log("--- Guild Bank Scan ---", 0.4, 1, 0.8)
+            local total = 0
+            for itemID, count in pairs(ns.guildBankStock) do
+                local name = GetItemInfo(itemID) or ("item:" .. itemID)
+                ns.Log(count .. "x " .. name, 1, 1, 1)
+                total = total + 1
+            end
+            ns.Log(total .. " unique item(s) found.", 0.4, 1, 0.8)
+            if ns.RecalculateToBuy then ns.RecalculateToBuy() end
+            if ns.RefreshToBuyUI then ns.RefreshToBuyUI() end
+            ns.Print("Guild bank scanned.")
+            if scanBtn then
+                scanBtn:SetText("Scanned!")
+                C_Timer.After(2, function()
+                    if scanBtn then scanBtn:SetText("Scan for Restock") end
+                end)
+            end
+            return
         end
+        currentTab = table.remove(queue, 1)
+        QueryGuildBankTab(currentTab)
+    end
+
+    scanEventFrame:RegisterEvent("GUILDBANKBAGSLOTS_CHANGED")
+    scanEventFrame:SetScript("OnEvent", function()
+        if not currentTab then return end
+        ReadTab()
+        currentTab = nil
+        ScanNext()
     end)
+
+    ScanNext()
 end
 
 local function OnBankOpened()

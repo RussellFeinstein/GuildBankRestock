@@ -22,6 +22,7 @@ local defaults = {
         activeProfile = nil,
         profiles      = {},
         budget        = 0,
+        log           = {},
     },
 }
 
@@ -60,9 +61,15 @@ function ns.Print(msg)
 end
 
 function ns.Log(msg, r, g, b)
-    ns.log[#ns.log + 1] = { msg = msg, r = r, g = g, b = b }
+    local fullMsg = "[" .. date("%H:%M:%S") .. "] " .. msg
+    ns.log[#ns.log + 1] = { msg = fullMsg, r = r, g = g, b = b }
+    if ns.addon and ns.addon.db then
+        local dbLog = ns.addon.db.global.log
+        dbLog[#dbLog + 1] = { msg = fullMsg, r = r, g = g, b = b }
+        if #dbLog > 500 then table.remove(dbLog, 1) end
+    end
     if ns.AppendLogEntry then
-        ns.AppendLogEntry(msg, r, g, b)
+        ns.AppendLogEntry(fullMsg, r, g, b)
     end
 end
 
@@ -196,6 +203,14 @@ function GBR:OnInitialize()
 
     LoadSettings()
     if ns.ApplySettingsToUI then ns.ApplySettingsToUI() end
+
+    -- Load persisted log and replay into the ScrollingMessageFrame
+    ns.log = self.db.global.log
+    if ns.AppendLogEntry then
+        for _, entry in ipairs(ns.log) do
+            ns.AppendLogEntry(entry.msg, entry.r, entry.g, entry.b)
+        end
+    end
 
     self:RegisterChatCommand("restock",     "HandleSlashCommand")
     self:RegisterChatCommand("bankrestock", "HandleSlashCommand")

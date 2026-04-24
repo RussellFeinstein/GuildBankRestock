@@ -2,6 +2,17 @@
 
 All notable changes to GuildBankRestock will be documented here.
 
+## [0.8.6] - 2026-04-23
+
+### Added
+- Timestamps (`[HH:MM:SS]`) prepended to every log entry
+
+### Changed
+- Log now persists across sessions — stored in SavedVariables (capped at 500 entries) and replayed on login; it no longer resets on reload or relog
+
+### Fixed
+- Log scrollbar thumb direction was inverted — thumb now sits at the bottom when viewing the most recent entries and at the top when scrolled to oldest
+
 ## [0.8.5] - 2026-04-23
 
 ### Fixed
