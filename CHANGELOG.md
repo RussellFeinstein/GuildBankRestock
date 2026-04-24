@@ -2,6 +2,12 @@
 
 All notable changes to GuildBankRestock will be documented here.
 
+## [0.8.12] - 2026-04-24
+
+### Changed
+- About tab moved to the right of Log, both right-aligned in the tab bar
+- About tab uses larger font sizes (`GameFontNormalHuge` for headings, `GameFontNormalLarge` for body) for easier reading
+
 ## [0.8.11] - 2026-04-24
 
 ### Fixed

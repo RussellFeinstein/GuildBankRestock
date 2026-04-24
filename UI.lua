@@ -16,8 +16,8 @@ local currentRankFilter   = nil
 local suppressStopMessage = false
 
 local _version  = (C_AddOns and C_AddOns.GetAddOnMetadata or GetAddOnMetadata)(ADDON_NAME, "Version") or "?"
-local ABOUT_TAB = #CATEGORIES + 1
-local LOG_TAB   = #CATEGORIES + 2
+local LOG_TAB   = #CATEGORIES + 1
+local ABOUT_TAB = #CATEGORIES + 2
 
 -- Forward declarations
 local BuildCategoryContent, BuildLogContent, BuildAboutContent
@@ -773,7 +773,7 @@ BuildAboutContent = function()
     local function Heading(text)
         local lbl = AceGUI:Create("Label")
         lbl:SetText("|cffffd700" .. text .. "|r")
-        lbl:SetFontObject(GameFontNormalLarge)
+        lbl:SetFontObject(GameFontNormalHuge)
         lbl:SetFullWidth(true)
         scroll:AddChild(lbl)
     end
@@ -781,6 +781,7 @@ BuildAboutContent = function()
     local function Body(text)
         local lbl = AceGUI:Create("Label")
         lbl:SetText(text)
+        lbl:SetFontObject(GameFontNormalLarge)
         lbl:SetFullWidth(true)
         scroll:AddChild(lbl)
     end
@@ -849,8 +850,8 @@ ShowTabView = function()
     for i, cat in ipairs(CATEGORIES) do
         tabs[#tabs + 1] = { value = tostring(i), text = cat.name }
     end
-    tabs[#tabs + 1] = { value = "about", text = "About" }
     tabs[#tabs + 1] = { value = "log", text = "Log" }
+    tabs[#tabs + 1] = { value = "about", text = "About" }
 
     tabGroup = AceGUI:Create("TabGroup")
     tabGroup:SetTabs(tabs)
@@ -872,10 +873,15 @@ ShowTabView = function()
     local _origBuildTabs = tabGroup.BuildTabs
     tabGroup.BuildTabs = function(self, ...)
         _origBuildTabs(self, ...)
+        local aboutTabBtn = self.tabs[ABOUT_TAB]
+        if aboutTabBtn then
+            aboutTabBtn:ClearAllPoints()
+            aboutTabBtn:SetPoint("TOPRIGHT", self.frame, "TOPRIGHT", 0, -7)
+        end
         local logTabBtn = self.tabs[LOG_TAB]
-        if logTabBtn then
+        if logTabBtn and aboutTabBtn then
             logTabBtn:ClearAllPoints()
-            logTabBtn:SetPoint("TOPRIGHT", self.frame, "TOPRIGHT", 0, -7)
+            logTabBtn:SetPoint("TOPRIGHT", aboutTabBtn, "TOPLEFT", 0, 0)
         end
     end
     tabGroup:BuildTabs()
