@@ -114,5 +114,6 @@ This downloads the required Ace3 libraries (LibStub, CallbackHandler-1.0, AceAdd
 - The Auctionator Shopping tab must be open before clicking Start — the addon builds and runs the search itself, no manual shopping list setup required
 - In Restock mode, click **Scan for Restock** on the guild bank UI before heading to the AH — scanning is always manual and never happens automatically
 - The addon will stop automatically if a purchase fails (e.g. insufficient gold)
-- The window is resizable, movable, and can be closed with ESC
+- The window is movable and can be closed with ESC
+- Navigation uses a left-side sidebar: category buttons at the top, Log and About pinned to the bottom
 - Item states, quantities, rank filter, active mode, active profile, and the activity log are all saved automatically and restored on login

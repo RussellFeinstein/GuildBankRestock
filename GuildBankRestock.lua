@@ -232,12 +232,12 @@ end
 function GBR:HandleSlashCommand(msg)
     local cmd = msg:lower():match("^%s*(%S*)") or ""
     if cmd == "stop" then
-        ns.frame.frame:Hide()
+        ns.frame:Hide()
     elseif cmd == "version" or cmd == "v" then
         local v = (C_AddOns and C_AddOns.GetAddOnMetadata or GetAddOnMetadata)(ADDON_NAME, "Version") or "?"
         ns.Print("Version " .. v)
     else
-        ns.frame.frame:Show()
+        ns.frame:Show()
         ns.UpdateUI()
     end
 end

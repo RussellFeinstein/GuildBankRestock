@@ -58,10 +58,10 @@ btn:SetScript("OnDragStop", function(self)
 end)
 
 btn:SetScript("OnClick", function()
-    if ns.frame and ns.frame.frame:IsShown() then
-        ns.frame.frame:Hide()
+    if ns.frame and ns.frame:IsShown() then
+        ns.frame:Hide()
     elseif ns.frame then
-        ns.frame.frame:Show()
+        ns.frame:Show()
         ns.UpdateUI()
     end
 end)

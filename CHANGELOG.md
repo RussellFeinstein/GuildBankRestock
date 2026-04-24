@@ -2,6 +2,16 @@
 
 All notable changes to GuildBankRestock will be documented here.
 
+## [0.9.0] - 2026-04-24
+
+### Changed
+- Replaced AceGUI Frame + TabGroup with a raw WoW frame and a left-side sidebar for navigation
+- Category buttons (Gems, Enchants, Potions, Flasks, Oils) stack at the top of the sidebar; Log and About are pinned to the bottom
+- Active sidebar tab is visually highlighted
+- Window chrome is now fully custom: draggable title bar, close button, and status text at the bottom — AceGUI Frame widget removed
+- Frame has a visible border and inner padding on all sides so no content touches the frame edge
+- AceGUI is still used for all per-tab widget content (checkboxes, edit boxes, scroll frames, labels, buttons)
+
 ## [0.8.12] - 2026-04-24
 
 ### Changed

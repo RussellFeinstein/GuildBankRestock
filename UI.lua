@@ -5,8 +5,11 @@ local CATEGORIES = ns.CATEGORIES
 -- ============================================================
 -- Local state
 -- ============================================================
-local frame                -- AceGUI Frame widget
-local tabGroup             -- AceGUI TabGroup (recreated on state transitions)
+local mainFrame            -- raw WoW frame (main window)
+local contentGroup         -- AceGUI SimpleGroup (widget host, replaces TabGroup)
+local sidebarPanel         -- raw frame, left sidebar
+local sidebarButtons = {}  -- sidebar tab button references
+local statusBar            -- FontString at bottom of mainFrame
 local logFrame             -- raw ScrollingMessageFrame
 local logScrollbar         -- Slider frame for log scrolling
 local logExportBtn         -- Button frame for log export
@@ -22,6 +25,11 @@ local ABOUT_TAB = #CATEGORIES + 2
 -- Forward declarations
 local BuildCategoryContent, BuildLogContent, BuildAboutContent
 local ShowTabView, ShowStatusView, UpdateUI, StartSearch
+local SelectTab
+
+local function SetStatusText(text)
+    if statusBar then statusBar:SetText(text or "") end
+end
 
 -- ============================================================
 -- Log frame  (raw — AceGUI has no colored-text scroll widget)
@@ -210,7 +218,7 @@ end
 -- Build category tab content  (rebuilt on every tab select)
 -- ============================================================
 BuildCategoryContent = function(catIdx)
-    tabGroup:ReleaseChildren()
+    contentGroup:ReleaseChildren()
     DetachLogFrame()
 
     local cat = CATEGORIES[catIdx]
@@ -258,7 +266,7 @@ BuildCategoryContent = function(catIdx)
         BuildCategoryContent(catIdx)
     end)
 
-    tabGroup:AddChild(modeRow)
+    contentGroup:AddChild(modeRow)
 
     -- ── Profile row (restock only) ────────────────────────────
     if ns.mode == "restock" then
@@ -302,7 +310,7 @@ BuildCategoryContent = function(catIdx)
             StaticPopup_Show("GUILDBANKRESTOCK_SAVE_PROFILE")
         end)
 
-        tabGroup:AddChild(profileRow)
+        contentGroup:AddChild(profileRow)
     end
 
     -- ── Column header row ─────────────────────────────────────
@@ -397,7 +405,7 @@ BuildCategoryContent = function(catIdx)
         BuildCategoryContent(catIdx)
     end)
 
-    tabGroup:AddChild(btnBar)
+    contentGroup:AddChild(btnBar)
 
     -- ── Estimated total across all categories for this run ──
     local runEstTotal = 0
@@ -452,17 +460,17 @@ BuildCategoryContent = function(catIdx)
 
     AddBtn(searchBar, "Start Search", nil, StartSearch)
 
-    tabGroup:AddChild(searchBar)
+    contentGroup:AddChild(searchBar)
 
-    tabGroup:AddChild(headerRow)
+    contentGroup:AddChild(headerRow)
 
     -- ── Scrollable item list (fills remaining height) ─────────
     local scroll = AceGUI:Create("ScrollFrame")
     scroll:SetLayout("List")
     scroll:SetFullWidth(true)
-    tabGroup:AddChild(scroll)
+    contentGroup:AddChild(scroll)
     -- List layout only sets TOPLEFT; add BOTTOMRIGHT so the scroll fills remaining height
-    scroll.frame:SetPoint("BOTTOMRIGHT", tabGroup.content, "BOTTOMRIGHT", 0, 0)
+    scroll.frame:SetPoint("BOTTOMRIGHT", contentGroup.content, "BOTTOMRIGHT", 0, 0)
 
     local editBoxes = {}
     for i, item in ipairs(cat.items) do
@@ -665,10 +673,10 @@ end
 -- Build log tab content
 -- ============================================================
 BuildLogContent = function()
-    tabGroup:ReleaseChildren()
+    contentGroup:ReleaseChildren()
     DetachLogFrame()
 
-    local content = tabGroup.content
+    local content = contentGroup.content
 
     -- Create scrollbar once
     if not logScrollbar then
@@ -761,14 +769,14 @@ end
 -- About tab content
 -- ============================================================
 BuildAboutContent = function()
-    tabGroup:ReleaseChildren()
+    contentGroup:ReleaseChildren()
     DetachLogFrame()
 
     local scroll = AceGUI:Create("ScrollFrame")
     scroll:SetLayout("List")
     scroll:SetFullWidth(true)
     scroll:SetFullHeight(true)
-    tabGroup:AddChild(scroll)
+    contentGroup:AddChild(scroll)
 
     local function Heading(text)
         local lbl = AceGUI:Create("Label")
@@ -843,55 +851,8 @@ end
 -- Show the tab view  (IDLE state)
 -- ============================================================
 ShowTabView = function()
-    DetachLogFrame()
-    frame:ReleaseChildren()
-
-    local tabs = {}
-    for i, cat in ipairs(CATEGORIES) do
-        tabs[#tabs + 1] = { value = tostring(i), text = cat.name }
-    end
-    tabs[#tabs + 1] = { value = "log", text = "Log" }
-    tabs[#tabs + 1] = { value = "about", text = "About" }
-
-    tabGroup = AceGUI:Create("TabGroup")
-    tabGroup:SetTabs(tabs)
-    tabGroup:SetLayout("List")
-    tabGroup:SetCallback("OnGroupSelected", function(_, _, group)
-        DetachLogFrame()
-        if group == "log" then
-            currentCatIdx = LOG_TAB
-            BuildLogContent()
-        elseif group == "about" then
-            currentCatIdx = ABOUT_TAB
-            BuildAboutContent()
-        else
-            currentCatIdx = tonumber(group) or 1
-            BuildCategoryContent(currentCatIdx)
-        end
-    end)
-
-    local _origBuildTabs = tabGroup.BuildTabs
-    tabGroup.BuildTabs = function(self, ...)
-        _origBuildTabs(self, ...)
-        local aboutTabBtn = self.tabs[ABOUT_TAB]
-        if aboutTabBtn then
-            aboutTabBtn:ClearAllPoints()
-            aboutTabBtn:SetPoint("TOPRIGHT", self.frame, "TOPRIGHT", 0, -7)
-        end
-        local logTabBtn = self.tabs[LOG_TAB]
-        if logTabBtn and aboutTabBtn then
-            logTabBtn:ClearAllPoints()
-            logTabBtn:SetPoint("TOPRIGHT", aboutTabBtn, "TOPLEFT", 0, 0)
-        end
-    end
-    tabGroup:BuildTabs()
-
-    frame:AddChild(tabGroup)
-
-    local tabVal = currentCatIdx == LOG_TAB and "log"
-        or currentCatIdx == ABOUT_TAB and "about"
-        or tostring(currentCatIdx)
-    tabGroup:SelectTab(tabVal)
+    sidebarPanel:Show()
+    SelectTab(currentCatIdx)
 end
 
 -- ============================================================
@@ -899,7 +860,8 @@ end
 -- ============================================================
 ShowStatusView = function(statusMsg, btnText, btnEnabled, btnHandler)
     DetachLogFrame()
-    frame:ReleaseChildren()
+    sidebarPanel:Hide()
+    contentGroup:ReleaseChildren()
 
     local container = AceGUI:Create("SimpleGroup")
     container:SetLayout("List")
@@ -921,27 +883,27 @@ ShowStatusView = function(statusMsg, btnText, btnEnabled, btnHandler)
     end
     container:AddChild(btn)
 
-    frame:AddChild(container)
+    contentGroup:AddChild(container)
 end
 
 -- ============================================================
 -- UpdateUI  (state machine)
 -- ============================================================
 UpdateUI = function()
-    if not frame then return end
+    if not mainFrame then return end
 
     if ns.state == ns.STATE.IDLE then
-        frame:SetStatusText("Select items and quantities, then click Start.")
+        SetStatusText("Select items and quantities, then click Start.")
         ShowTabView()
 
     elseif ns.state == ns.STATE.SEARCHING then
-        frame:SetStatusText("Searching...")
+        SetStatusText("Searching...")
         ShowStatusView("Searching...", "Searching...", false)
 
     elseif ns.state == ns.STATE.READY then
         local listPos, ref = ns.GetNextItem()
         if not listPos then
-            frame:SetStatusText("|cff00ff00All items purchased!|r")
+            SetStatusText("|cff00ff00All items purchased!|r")
             ShowStatusView(
                 "|cff00ff00All items purchased!|r",
                 "Close", true,
@@ -949,7 +911,7 @@ UpdateUI = function()
                     ns.Log("All items purchased.", 0.4, 1, 0.4)
                     suppressStopMessage = true
                     ns.Reset()
-                    frame.frame:Hide()
+                    mainFrame:Hide()
                 end
             )
         else
@@ -968,7 +930,7 @@ UpdateUI = function()
                 return
             end
 
-            frame:SetStatusText("Next: " .. itemName)
+            SetStatusText("Next: " .. itemName)
             ShowStatusView(
                 "Next: " .. itemName,
                 "Buy " .. qty .. "x " .. itemName, true,
@@ -984,7 +946,7 @@ UpdateUI = function()
         end
 
     elseif ns.state == ns.STATE.CONFIRMING then
-        frame:SetStatusText("Confirming purchase...")
+        SetStatusText("Confirming purchase...")
         ShowStatusView("Confirming purchase...", "Please wait...", false)
     end
 end
@@ -994,7 +956,7 @@ ns.UpdateUI = UpdateUI
 -- Callbacks for Profiles.lua  (rebuild current tab from state)
 -- ============================================================
 ns.RefreshToBuyUI = function()
-    if ns.state == ns.STATE.IDLE and currentCatIdx ~= LOG_TAB and currentCatIdx ~= ABOUT_TAB and tabGroup then
+    if ns.state == ns.STATE.IDLE and currentCatIdx ~= LOG_TAB and currentCatIdx ~= ABOUT_TAB then
         BuildCategoryContent(currentCatIdx)
     end
 end
@@ -1008,18 +970,52 @@ end
 -- ============================================================
 -- Main frame  (created at file load, starts hidden)
 -- ============================================================
-frame = AceGUI:Create("Frame")
-frame:SetTitle("Guild Bank Restock v" .. _version)
-frame:SetWidth(1000)
-frame:SetHeight(560)
-frame:SetLayout("Fill")
+mainFrame = CreateFrame("Frame", "GuildBankRestockFrame", UIParent, "BackdropTemplate")
+mainFrame:SetSize(1000, 560)
+mainFrame:SetPoint("CENTER")
+mainFrame:SetMovable(true)
+mainFrame:SetClampedToScreen(true)
+mainFrame:SetFrameStrata("MEDIUM")
+mainFrame:SetBackdrop({
+    bgFile   = "Interface/ChatFrame/ChatFrameBackground",
+    edgeFile = "Interface/Tooltips/UI-Tooltip-Border",
+    tile = true, tileSize = 16, edgeSize = 16,
+    insets = { left = 4, right = 4, top = 4, bottom = 4 },
+})
+mainFrame:SetBackdropColor(0.06, 0.06, 0.06, 0.92)
+mainFrame:SetBackdropBorderColor(0.65, 0.65, 0.65, 1)
 
--- Register with UISpecialFrames so ESC closes the window
-_G["GuildBankRestockMainFrame"] = frame.frame
+-- Draggable title bar
+local titleDrag = CreateFrame("Frame", nil, mainFrame)
+titleDrag:SetPoint("TOPLEFT",  mainFrame, "TOPLEFT",  0, 0)
+titleDrag:SetPoint("TOPRIGHT", mainFrame, "TOPRIGHT", -30, 0)
+titleDrag:SetHeight(30)
+titleDrag:EnableMouse(true)
+titleDrag:RegisterForDrag("LeftButton")
+titleDrag:SetScript("OnDragStart", function() mainFrame:StartMoving() end)
+titleDrag:SetScript("OnDragStop",  function() mainFrame:StopMovingOrSizing() end)
+
+local titleText = titleDrag:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+titleText:SetPoint("CENTER", titleDrag, "CENTER", 0, 0)
+titleText:SetText("Guild Bank Restock v" .. _version)
+
+-- Close button
+local closeButton = CreateFrame("Button", nil, mainFrame, "UIPanelCloseButton")
+closeButton:SetPoint("TOPRIGHT", mainFrame, "TOPRIGHT", 2, 2)
+closeButton:SetScript("OnClick", function() mainFrame:Hide() end)
+
+-- Status bar
+statusBar = mainFrame:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+statusBar:SetPoint("BOTTOMLEFT",  mainFrame, "BOTTOMLEFT",  12, 10)
+statusBar:SetPoint("BOTTOMRIGHT", mainFrame, "BOTTOMRIGHT", -30, 10)
+statusBar:SetJustifyH("LEFT")
+
+-- ESC closes the window
+_G["GuildBankRestockMainFrame"] = mainFrame
 tinsert(UISpecialFrames, "GuildBankRestockMainFrame")
 
--- HookScript so frame.frame:Hide() from ANY path (ESC, X, /rs stop) fires reset
-frame.frame:HookScript("OnHide", function()
+-- HookScript so Hide() from ANY path (ESC, X button, /rs stop) fires reset
+mainFrame:HookScript("OnHide", function()
     if not suppressStopMessage then
         ns.Reset()
         ns.Print("Stopped.")
@@ -1028,9 +1024,74 @@ frame.frame:HookScript("OnHide", function()
     suppressStopMessage = false
 end)
 
-frame.frame:Hide()
+-- Sidebar panel (left, 120 px wide)
+sidebarPanel = CreateFrame("Frame", nil, mainFrame)
+sidebarPanel:SetPoint("TOPLEFT",    mainFrame, "TOPLEFT",    14, -36)
+sidebarPanel:SetPoint("BOTTOMLEFT", mainFrame, "BOTTOMLEFT", 14,  32)
+sidebarPanel:SetWidth(120)
 
-ns.frame = frame  -- exposed as AceGUI widget; use ns.frame.frame for raw WoW frame ops
+-- Sidebar buttons (built once)
+do
+    local btnH = 26
+    local pad  = 2
+    local y    = -4
+
+    for i, cat in ipairs(CATEGORIES) do
+        local btn = CreateFrame("Button", nil, sidebarPanel, "UIPanelButtonTemplate")
+        btn:SetSize(116, btnH)
+        btn:SetPoint("TOPLEFT", sidebarPanel, "TOPLEFT", 2, y)
+        btn:SetText(cat.name)
+        local idx = i
+        btn:SetScript("OnClick", function() SelectTab(idx) end)
+        sidebarButtons[idx] = btn
+        y = y - btnH - pad
+    end
+
+    local aboutBtn = CreateFrame("Button", nil, sidebarPanel, "UIPanelButtonTemplate")
+    aboutBtn:SetSize(116, btnH)
+    aboutBtn:SetPoint("BOTTOMLEFT", sidebarPanel, "BOTTOMLEFT", 2, btnH + pad + 4)
+    aboutBtn:SetText("About")
+    aboutBtn:SetScript("OnClick", function() SelectTab(ABOUT_TAB) end)
+    sidebarButtons[ABOUT_TAB] = aboutBtn
+
+    local logBtn = CreateFrame("Button", nil, sidebarPanel, "UIPanelButtonTemplate")
+    logBtn:SetSize(116, btnH)
+    logBtn:SetPoint("BOTTOMLEFT", sidebarPanel, "BOTTOMLEFT", 2, 4)
+    logBtn:SetText("Log")
+    logBtn:SetScript("OnClick", function() SelectTab(LOG_TAB) end)
+    sidebarButtons[LOG_TAB] = logBtn
+end
+
+-- AceGUI content group (fills the right side of the window)
+contentGroup = AceGUI:Create("SimpleGroup")
+contentGroup:SetLayout("List")
+contentGroup.frame:SetParent(mainFrame)
+contentGroup.frame:ClearAllPoints()
+contentGroup.frame:SetPoint("TOPLEFT",     mainFrame, "TOPLEFT",     142, -36)
+contentGroup.frame:SetPoint("BOTTOMRIGHT", mainFrame, "BOTTOMRIGHT",  -18,  32)
+
+-- SelectTab: highlight active sidebar button and rebuild content
+SelectTab = function(idx)
+    for _, btn in pairs(sidebarButtons) do
+        btn:SetNormalFontObject(GameFontNormal)
+        btn:UnlockHighlight()
+    end
+    if sidebarButtons[idx] then
+        sidebarButtons[idx]:SetNormalFontObject(GameFontHighlight)
+        sidebarButtons[idx]:LockHighlight()
+    end
+    currentCatIdx = idx
+    if idx == LOG_TAB then
+        BuildLogContent()
+    elseif idx == ABOUT_TAB then
+        BuildAboutContent()
+    else
+        BuildCategoryContent(idx)
+    end
+end
+
+mainFrame:Hide()
+ns.frame = mainFrame  -- raw WoW frame; callers use ns.frame directly (no .frame indirection)
 
 -- ============================================================
 -- Apply saved settings  (called by GBR:OnInitialize)
