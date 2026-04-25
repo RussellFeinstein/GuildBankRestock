@@ -80,8 +80,7 @@ To add or remove items, edit the relevant file in the `Categories/` folder. Each
 | `Categories/Flasks.lua` | Flasks |
 | `Categories/Oils.lua` | Oils |
 | `Categories/Food.lua` | Food |
-| `Categories/AugmentRunes.lua` | Augment Runes |
-| `Categories/VantusRunes.lua` | Vantus Runes |
+| `Categories/Runes.lua` | Runes (Augment + Vantus) |
 
 Items are identified by item ID for reliability across patches. Names are included as comments. Ranked items (R1/R2) carry a `rank` field used by the rank filter buttons.
 
@@ -131,7 +130,7 @@ This downloads the required Ace3 libraries (LibStub, CallbackHandler-1.0, AceAdd
 - In Restock mode, click **Scan for Restock** on the guild bank UI before heading to the AH — scanning is always manual and never happens automatically
 - The addon will stop automatically if a purchase fails (e.g. insufficient gold)
 - The window is movable and can be closed with ESC
-- Navigation uses a left-side sidebar: Guild/Personal context switcher at the top, category buttons below, Selected/Log/About pinned to the bottom
+- Navigation uses a left-side sidebar: Guild/Personal context switcher at the top, category buttons below, Selected/About/Log pinned to the bottom
 - Guild Bank and Personal contexts each have independent item settings and profiles
 - The **Selected** tab shows all currently checked / profile-included items across every category in one flat list
 - Item states, quantities, rank filter, active mode, active profile, active context, and the activity log are all saved automatically and restored on login

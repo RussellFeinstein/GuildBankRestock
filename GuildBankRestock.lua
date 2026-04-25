@@ -77,7 +77,7 @@ function ns.Print(msg)
 end
 
 function ns.Log(msg, r, g, b)
-    local fullMsg = "[" .. date("%H:%M:%S") .. "] " .. msg
+    local fullMsg = "[" .. date("%m/%d %H:%M:%S") .. "] " .. msg
     ns.log[#ns.log + 1] = { msg = fullMsg, r = r, g = g, b = b }
     if ns.addon and ns.addon.db then
         local dbLog = ns.addon.db.global.log
@@ -207,6 +207,80 @@ end
 
 function ns.SaveRankFilter(rank)
     ns.ContextDB().rankFilter = rank
+end
+
+-- ============================================================
+-- Search kick-off  (called by the Start Search button in UI)
+-- ============================================================
+ns.StartSearch = function()
+    if not Auctionator or not Auctionator.API.v1.ConvertToSearchString then
+        ns.Print("Auctionator is not loaded or is outdated.")
+        return
+    end
+    if not AuctionatorShoppingFrame or not AuctionatorShoppingFrame:IsVisible() then
+        ns.Print("Open the Auctionator Shopping tab first.")
+        return
+    end
+
+    wipe(ns.activeItems)
+    wipe(ns.boughtIndices)
+    wipe(ns.resultRows)
+
+    if ns.mode == "restock" then
+        if not ns.currentProfile then
+            ns.Print("No profile selected — create one with the + button.")
+            return
+        end
+        local skipped = 0
+        for catIdx, cat in ipairs(CATEGORIES) do
+            for itemIdx, item in ipairs(cat.items) do
+                if item.enabled and not item.header then
+                    local key = catIdx .. "_" .. itemIdx
+                    local qty = ns.toBuy[key] or 0
+                    if qty > 0 then
+                        ns.activeItems[#ns.activeItems + 1] = { catIdx = catIdx, itemIdx = itemIdx, needed = qty }
+                    else
+                        skipped = skipped + 1
+                    end
+                end
+            end
+        end
+        if #ns.activeItems == 0 then
+            if ns.context == "personal" then
+                ns.Print("Nothing to buy — you're fully stocked for this profile.")
+                ns.Log("Fully stocked. No items queued.", 0.4, 1, 0.4)
+            else
+                ns.Print("Nothing to buy — guild bank is fully stocked for this profile.")
+                ns.Log("Guild bank fully stocked. No items queued.", 0.4, 1, 0.4)
+            end
+            return
+        end
+        if skipped > 0 then
+            ns.Log(skipped .. " item(s) skipped — already at target stock.", 1, 0.82, 0)
+        end
+    else
+        for catIdx, cat in ipairs(CATEGORIES) do
+            for itemIdx, item in ipairs(cat.items) do
+                if item.enabled and not item.header then
+                    ns.activeItems[#ns.activeItems + 1] = { catIdx = catIdx, itemIdx = itemIdx, needed = item.qty }
+                end
+            end
+        end
+        if #ns.activeItems == 0 then
+            ns.Print("No items selected — enable at least one.")
+            return
+        end
+    end
+
+    Auctionator.EventBus:RegisterSource(ns.listener, ADDON_NAME)
+    Auctionator.EventBus:Register(ns.listener, { Auctionator.Shopping.Tab.Events.SearchEnd })
+    ns.listenerRegistered = true
+    ns.runStartMoney = GetMoney()
+    ns.state = ns.STATE.SEARCHING
+    ns.UpdateUI()
+    ns.Log("Search started: " .. #ns.activeItems .. " items." ..
+        (ns.budget > 0 and ("  Budget: " .. ns.budget .. "g") or ""), 0.8, 0.8, 1)
+    AuctionatorShoppingFrame:DoSearch(ns.BuildSearchStrings())
 end
 
 -- ============================================================

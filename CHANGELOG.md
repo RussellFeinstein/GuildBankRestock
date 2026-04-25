@@ -2,6 +2,21 @@
 
 All notable changes to GuildBankRestock will be documented here.
 
+## [0.9.3] - 2026-04-25
+
+### Changed
+- **UI split into Sidebar.lua and Tabs.lua**: sidebar panel code extracted to `Sidebar.lua`; all tab content builders (`BuildCategoryContent`, `BuildAllItemsContent`, `BuildLogContent`, `BuildAboutContent`) and `SelectTab` extracted to `Tabs.lua`; `UI.lua` now only owns the main frame shell, static popups, `ShowTabView`, `ShowStatusView`, and `UpdateUI`
+- Shared UI state moved into `ns.ui` table (`LOG_TAB`, `ABOUT_TAB`, `ALL_TAB`, `version`, `currentCatIdx`, `currentRankFilter`, `showAllProfileItems`, `sidebarButtons`, `mainFrame`, `sidebarPanel`, `contentGroup`) — eliminates upvalue coupling between files
+- `StartSearch` moved from `UI.lua` to `GuildBankRestock.lua` as `ns.StartSearch` so it is accessible before the UI loads
+- Log timestamps now include date: `[MM/DD HH:MM:SS]` instead of `[HH:MM:SS]`
+- `ns.RefreshProfileUI` merged into `ns.RefreshToBuyUI` (both did the same refresh; callers updated)
+- Category tabs now show all items regardless of profile — profile inclusion filtering moved exclusively to the Selected tab; "Add Items" / "Hide Extra" toggle removed from per-category view
+- **Select All / Select None** in category tabs now respect the active rank filter (only affect visible ranked items)
+- Log export popup reworked: uses `AceGUI:Release` on close to avoid frame leaks; export button repositioned to bottom-right of log content area
+
+### Fixed
+- Personal inventory scanning now uses `stackCount` (total items in stack) instead of `itemCount` (which may be per-slot metadata) — fixes undercounting stacked items in bags, personal bank, and warband bank
+
 ## [0.9.2] - 2026-04-25
 
 ### Changed

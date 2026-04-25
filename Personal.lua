@@ -20,7 +20,8 @@ local function DoPersonalScan()
         for slot = 1, numSlots do
             local info = C_Container.GetContainerItemInfo(bagID, slot)
             if info and info.itemID then
-                ns.personalStock[info.itemID] = (ns.personalStock[info.itemID] or 0) + (info.itemCount or 1)
+                local count = info.stackCount or info.itemCount or 1
+                ns.personalStock[info.itemID] = (ns.personalStock[info.itemID] or 0) + count
             end
         end
     end
@@ -30,7 +31,8 @@ local function DoPersonalScan()
     for slot = 1, C_Container.GetContainerNumSlots(bankContainer) do
         local info = C_Container.GetContainerItemInfo(bankContainer, slot)
         if info and info.itemID then
-            ns.personalStock[info.itemID] = (ns.personalStock[info.itemID] or 0) + (info.itemCount or 1)
+            local count = info.stackCount or info.itemCount or 1
+            ns.personalStock[info.itemID] = (ns.personalStock[info.itemID] or 0) + count
         end
     end
     for bagID = 5, 11 do
@@ -38,7 +40,8 @@ local function DoPersonalScan()
         for slot = 1, numSlots do
             local info = C_Container.GetContainerItemInfo(bagID, slot)
             if info and info.itemID then
-                ns.personalStock[info.itemID] = (ns.personalStock[info.itemID] or 0) + (info.itemCount or 1)
+                local count = info.stackCount or info.itemCount or 1
+                ns.personalStock[info.itemID] = (ns.personalStock[info.itemID] or 0) + count
             end
         end
     end
@@ -58,7 +61,8 @@ local function DoPersonalScan()
                     if ok3 and info and info.hyperlink then
                         local itemID = tonumber(info.hyperlink:match("item:(%d+)"))
                         if itemID then
-                            ns.personalStock[itemID] = (ns.personalStock[itemID] or 0) + (info.itemCount or 1)
+                            local count = info.stackCount or info.itemCount or 1
+                            ns.personalStock[itemID] = (ns.personalStock[itemID] or 0) + count
                         end
                     end
                 end
