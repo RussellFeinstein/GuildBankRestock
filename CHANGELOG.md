@@ -2,6 +2,15 @@
 
 All notable changes to GuildBankRestock will be documented here.
 
+## [0.9.2] - 2026-04-25
+
+### Changed
+- **Sidebar controls moved**: Mode (Bulk / Restock), Profile nav (<< Name >>), Profile actions (New / Delete / Save), and Scan Inventory are now persistent sidebar controls instead of being rebuilt inside each tab — they stay visible and update in place when switching tabs
+- Sidebar widened from 120 px to 150 px to fit the new controls; content area shifted right to match
+- `RefreshSidebar()` centralises all highlight and reposition logic for Guild/Personal, Bulk/Restock, profile section, and scan section; `ns.ApplySettingsToUI` and `ns.RefreshToBuyUI` / `ns.RefreshProfileUI` now call it directly
+- **Runes category**: merged `AugmentRunes.lua` and `VantusRunes.lua` into a single `Runes.lua`; populated with Void-Touched Augment Rune (ID 259085)
+- **Oils populated**: Thalassian Phoenix Oil R1 (ID 243733) and R2 (ID 243734)
+
 ## [0.9.1] - 2026-04-25
 
 ### Added

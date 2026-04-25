@@ -5,21 +5,27 @@ local CATEGORIES = ns.CATEGORIES
 -- ============================================================
 -- Local state
 -- ============================================================
-local mainFrame            -- raw WoW frame (main window)
-local contentGroup         -- AceGUI SimpleGroup (widget host, replaces TabGroup)
-local sidebarPanel         -- raw frame, left sidebar
-local sidebarButtons = {}  -- sidebar tab button references
-local statusBar            -- FontString at bottom of mainFrame
-local logFrame             -- raw ScrollingMessageFrame
-local logScrollbar         -- Slider frame for log scrolling
-local logExportBtn         -- Button frame for log export
+local mainFrame
+local contentGroup
+local sidebarPanel
+local sidebarButtons = {}
+local statusBar
+local logFrame
+local logScrollbar
+local logExportBtn
 local logScrollbarUpdating = false
-local currentCatIdx       = 1
-local currentRankFilter   = nil
-local suppressStopMessage = false
+local currentCatIdx        = 1
+local currentRankFilter    = nil
+local suppressStopMessage  = false
 local guildCtxBtn, personalCtxBtn
-local categoryScroll       -- AceGUI ScrollFrame managed outside AceGUI's layout
-local showAllProfileItems  = false  -- when true, show non-profile items in restock mode
+local categoryScroll
+local showAllProfileItems  = false
+
+-- Sidebar controls for mode / profile / scan (created in sidebar do-block)
+local sidebarBulkBtn, sidebarRestockBtn
+local sidebarProfileNav, sidebarProfileLabel, sidebarProfileDelBtn, sidebarProfileActions
+local sidebarScanRow, sidebarScanStatus
+local categoryBtns = {}
 
 local _version  = (C_AddOns and C_AddOns.GetAddOnMetadata or GetAddOnMetadata)(ADDON_NAME, "Version") or "?"
 local LOG_TAB   = #CATEGORIES + 1
@@ -29,7 +35,7 @@ local ALL_TAB   = #CATEGORIES + 3
 -- Forward declarations
 local BuildCategoryContent, BuildLogContent, BuildAboutContent, BuildAllItemsContent
 local ShowTabView, ShowStatusView, UpdateUI, StartSearch
-local SelectTab
+local SelectTab, RefreshSidebar
 
 local function SetStatusText(text)
     if statusBar then statusBar:SetText(text or "") end
@@ -253,108 +259,8 @@ BuildCategoryContent = function(catIdx)
         return btn
     end
 
-    -- Helper: apply gold color when rank/mode matches active filter
     local function RankLabel(label, rank)
         return currentRankFilter == rank and ("|cffffd100" .. label .. "|r") or label
-    end
-
-    local function ModeLabel(label, mode)
-        return ns.mode == mode and ("|cffffd100" .. label .. "|r") or label
-    end
-
-    -- ── Mode row ──────────────────────────────────────────────
-    local modeRow = AceGUI:Create("SimpleGroup")
-    modeRow:SetLayout("Flow")
-    modeRow:SetFullWidth(true)
-
-    AddBtn(modeRow, ModeLabel("Bulk", "bulk"), nil, function()
-        ns.mode = "bulk"
-        ns.ContextDB().mode = "bulk"
-        showAllProfileItems = false
-        BuildCategoryContent(catIdx)
-    end)
-
-    AddBtn(modeRow, ModeLabel("Restock", "restock"), nil, function()
-        ns.mode = "restock"
-        ns.ContextDB().mode = "restock"
-        showAllProfileItems = false
-        ns.RecalculateToBuy()
-        BuildCategoryContent(catIdx)
-    end)
-
-    contentGroup:AddChild(modeRow)
-
-    -- ── Profile row (restock only) ────────────────────────────
-    if ns.mode == "restock" then
-        local profileRow = AceGUI:Create("SimpleGroup")
-        profileRow:SetLayout("Flow")
-        profileRow:SetFullWidth(true)
-
-        local names = ns.GetProfileNames()
-
-        AddBtn(profileRow, "<<", nil, function()
-            if #names < 2 then return end
-            local idx = 1
-            for i, n in ipairs(names) do if n == ns.currentProfile then idx = i break end end
-            idx = idx - 1; if idx < 1 then idx = #names end
-            ns.SetActiveProfile(names[idx])
-        end)
-
-        local profileLabel = AceGUI:Create("Label")
-        profileLabel:SetText(ns.currentProfile or "(no profile)")
-        profileLabel:SetWidth(110)
-        profileRow:AddChild(profileLabel)
-
-        AddBtn(profileRow, ">>", nil, function()
-            if #names < 2 then return end
-            local idx = 1
-            for i, n in ipairs(names) do if n == ns.currentProfile then idx = i break end end
-            idx = idx % #names + 1
-            ns.SetActiveProfile(names[idx])
-        end)
-
-        AddBtn(profileRow, "New", nil, function()
-            StaticPopup_Show("GUILDBANKRESTOCK_NEW_PROFILE")
-        end)
-
-        local delBtn = AddBtn(profileRow, "Delete", nil, function()
-            if ns.currentProfile then ns.DeleteProfile(ns.currentProfile) end
-        end)
-        delBtn:SetDisabled(not ns.currentProfile)
-
-        AddBtn(profileRow, "Save", nil, function()
-            StaticPopup_Show("GUILDBANKRESTOCK_SAVE_PROFILE")
-        end)
-
-        contentGroup:AddChild(profileRow)
-    end
-
-    -- ── Personal scan status row ──────────────────────────────
-    if ns.context == "personal" then
-        local scanRow = AceGUI:Create("SimpleGroup")
-        scanRow:SetLayout("Flow")
-        scanRow:SetFullWidth(true)
-
-        local scanBtn = AceGUI:Create("Button")
-        scanBtn:SetText("Scan Inventory")
-        scanBtn:SetAutoWidth(true)
-        scanBtn:SetCallback("OnClick", function()
-            if ns.DoPersonalScan then ns.DoPersonalScan() end
-        end)
-        scanRow:AddChild(scanBtn)
-
-        local statusLbl = AceGUI:Create("Label")
-        if ns.personalScanned and ns.personalScanTime then
-            statusLbl:SetText("|cff00ff00Scanned at " .. ns.personalScanTime .. "|r")
-        elseif ns.personalScanned then
-            statusLbl:SetText("|cff00ff00Scanned|r")
-        else
-            statusLbl:SetText("|cffff8844Not yet scanned — open your bank to scan|r")
-        end
-        statusLbl:SetRelativeWidth(0.7)
-        scanRow:AddChild(statusLbl)
-
-        contentGroup:AddChild(scanRow)
     end
 
     -- ── Column header row ─────────────────────────────────────
@@ -775,102 +681,6 @@ BuildAllItemsContent = function()
 
     local function RankLabel(label, rank)
         return currentRankFilter == rank and ("|cffffd100" .. label .. "|r") or label
-    end
-
-    local function ModeLabel(label, mode)
-        return ns.mode == mode and ("|cffffd100" .. label .. "|r") or label
-    end
-
-    -- ── Mode row ──────────────────────────────────────────────
-    local modeRow = AceGUI:Create("SimpleGroup")
-    modeRow:SetLayout("Flow")
-    modeRow:SetFullWidth(true)
-    AddBtn(modeRow, ModeLabel("Bulk", "bulk"), nil, function()
-        ns.mode = "bulk"
-        ns.ContextDB().mode = "bulk"
-        showAllProfileItems = false
-        BuildAllItemsContent()
-    end)
-    AddBtn(modeRow, ModeLabel("Restock", "restock"), nil, function()
-        ns.mode = "restock"
-        ns.ContextDB().mode = "restock"
-        showAllProfileItems = false
-        ns.RecalculateToBuy()
-        BuildAllItemsContent()
-    end)
-    contentGroup:AddChild(modeRow)
-
-    -- ── Profile row (restock only) ────────────────────────────
-    if ns.mode == "restock" then
-        local profileRow = AceGUI:Create("SimpleGroup")
-        profileRow:SetLayout("Flow")
-        profileRow:SetFullWidth(true)
-
-        local names = ns.GetProfileNames()
-
-        AddBtn(profileRow, "<<", nil, function()
-            if #names < 2 then return end
-            local idx = 1
-            for i, n in ipairs(names) do if n == ns.currentProfile then idx = i break end end
-            idx = idx - 1; if idx < 1 then idx = #names end
-            ns.SetActiveProfile(names[idx])
-        end)
-
-        local profileLabel = AceGUI:Create("Label")
-        profileLabel:SetText(ns.currentProfile or "(no profile)")
-        profileLabel:SetWidth(110)
-        profileRow:AddChild(profileLabel)
-
-        AddBtn(profileRow, ">>", nil, function()
-            if #names < 2 then return end
-            local idx = 1
-            for i, n in ipairs(names) do if n == ns.currentProfile then idx = i break end end
-            idx = idx % #names + 1
-            ns.SetActiveProfile(names[idx])
-        end)
-
-        AddBtn(profileRow, "New", nil, function()
-            StaticPopup_Show("GUILDBANKRESTOCK_NEW_PROFILE")
-        end)
-
-        local delBtn = AddBtn(profileRow, "Delete", nil, function()
-            if ns.currentProfile then ns.DeleteProfile(ns.currentProfile) end
-        end)
-        delBtn:SetDisabled(not ns.currentProfile)
-
-        AddBtn(profileRow, "Save", nil, function()
-            StaticPopup_Show("GUILDBANKRESTOCK_SAVE_PROFILE")
-        end)
-
-        contentGroup:AddChild(profileRow)
-    end
-
-    -- ── Personal scan status row ──────────────────────────────
-    if ns.context == "personal" then
-        local scanRow = AceGUI:Create("SimpleGroup")
-        scanRow:SetLayout("Flow")
-        scanRow:SetFullWidth(true)
-
-        local scanBtn = AceGUI:Create("Button")
-        scanBtn:SetText("Scan Inventory")
-        scanBtn:SetAutoWidth(true)
-        scanBtn:SetCallback("OnClick", function()
-            if ns.DoPersonalScan then ns.DoPersonalScan() end
-        end)
-        scanRow:AddChild(scanBtn)
-
-        local statusLbl = AceGUI:Create("Label")
-        if ns.personalScanned and ns.personalScanTime then
-            statusLbl:SetText("|cff00ff00Scanned at " .. ns.personalScanTime .. "|r")
-        elseif ns.personalScanned then
-            statusLbl:SetText("|cff00ff00Scanned|r")
-        else
-            statusLbl:SetText("|cffff8844Not yet scanned — open your bank to scan|r")
-        end
-        statusLbl:SetRelativeWidth(0.7)
-        scanRow:AddChild(statusLbl)
-
-        contentGroup:AddChild(scanRow)
     end
 
     -- ── Column header row ─────────────────────────────────────
@@ -1350,7 +1160,7 @@ BuildAboutContent = function()
     Spacer()
     Heading("Features")
     Body(
-        "|cffaaaaaa•|r  Categories: Gems, Enchants, Potions, Flasks, Oils, Food, Augment Runes, Vantus Runes\n" ..
+        "|cffaaaaaa•|r  Categories: Gems, Enchants, Potions, Flasks, Oils, Food, Runes\n" ..
         "|cffaaaaaa•|r  Guild Bank and Personal contexts with separate settings and profiles\n" ..
         "|cffaaaaaa•|r  Per-item quantity targets with optional max-price caps\n" ..
         "|cffaaaaaa•|r  Bulk Mode — buy a fixed quantity of each selected item\n" ..
@@ -1498,6 +1308,7 @@ ns.UpdateUI = UpdateUI
 -- Callbacks for Profiles.lua  (rebuild current tab from state)
 -- ============================================================
 ns.RefreshToBuyUI = function()
+    RefreshSidebar()
     if ns.state == ns.STATE.IDLE and currentCatIdx ~= LOG_TAB and currentCatIdx ~= ABOUT_TAB then
         if currentCatIdx == ALL_TAB then
             BuildAllItemsContent()
@@ -1509,6 +1320,7 @@ end
 
 ns.RefreshProfileUI = function()
     showAllProfileItems = false
+    RefreshSidebar()
     if ns.state == ns.STATE.IDLE and currentCatIdx ~= LOG_TAB and currentCatIdx ~= ABOUT_TAB then
         if currentCatIdx == ALL_TAB then
             BuildAllItemsContent()
@@ -1598,17 +1410,18 @@ end)
 sidebarPanel = CreateFrame("Frame", nil, mainFrame)
 sidebarPanel:SetPoint("TOPLEFT",    mainFrame, "TOPLEFT",    14, -36)
 sidebarPanel:SetPoint("BOTTOMLEFT", mainFrame, "BOTTOMLEFT", 14,  32)
-sidebarPanel:SetWidth(120)
+sidebarPanel:SetWidth(150)
 
--- Sidebar buttons (built once)
+-- Sidebar (built once; dynamic section positions are set by RefreshSidebar)
 do
-    local btnH = 26
-    local pad  = 2
-    local ctxH = 22
+    local btnH  = 26
+    local pad   = 2
+    local ctxH  = 22
+    local modeH = 22
 
-    -- Context switcher: Guild | Personal (two buttons side-by-side at top of sidebar)
+    -- ── Context row: Guild | Personal ────────────────────────
     guildCtxBtn = CreateFrame("Button", nil, sidebarPanel, "UIPanelButtonTemplate")
-    guildCtxBtn:SetSize(56, ctxH)
+    guildCtxBtn:SetSize(71, ctxH)
     guildCtxBtn:SetPoint("TOPLEFT", sidebarPanel, "TOPLEFT", 2, -4)
     guildCtxBtn:SetText("Guild")
     guildCtxBtn:SetScript("OnClick", function()
@@ -1618,8 +1431,8 @@ do
     end)
 
     personalCtxBtn = CreateFrame("Button", nil, sidebarPanel, "UIPanelButtonTemplate")
-    personalCtxBtn:SetSize(58, ctxH)
-    personalCtxBtn:SetPoint("TOPLEFT", sidebarPanel, "TOPLEFT", 60, -4)
+    personalCtxBtn:SetSize(73, ctxH)
+    personalCtxBtn:SetPoint("TOPLEFT", sidebarPanel, "TOPLEFT", 75, -4)
     personalCtxBtn:SetText("Personal")
     personalCtxBtn:SetScript("OnClick", function()
         if ns.context == "personal" then return end
@@ -1627,39 +1440,224 @@ do
         SelectTab(currentCatIdx)
     end)
 
-    local y = -(4 + ctxH + 6)
+    -- ── Mode row: Bulk | Restock ──────────────────────────────
+    sidebarBulkBtn = CreateFrame("Button", nil, sidebarPanel, "UIPanelButtonTemplate")
+    sidebarBulkBtn:SetSize(71, modeH)
+    sidebarBulkBtn:SetPoint("TOPLEFT", sidebarPanel, "TOPLEFT", 2, -(4 + ctxH + 4))
+    sidebarBulkBtn:SetText("Bulk")
+    sidebarBulkBtn:SetScript("OnClick", function()
+        if ns.mode == "bulk" then return end
+        ns.mode = "bulk"
+        ns.ContextDB().mode = "bulk"
+        showAllProfileItems = false
+        RefreshSidebar()
+        SelectTab(currentCatIdx)
+    end)
 
+    sidebarRestockBtn = CreateFrame("Button", nil, sidebarPanel, "UIPanelButtonTemplate")
+    sidebarRestockBtn:SetSize(73, modeH)
+    sidebarRestockBtn:SetPoint("TOPLEFT", sidebarPanel, "TOPLEFT", 75, -(4 + ctxH + 4))
+    sidebarRestockBtn:SetText("Restock")
+    sidebarRestockBtn:SetScript("OnClick", function()
+        if ns.mode == "restock" then return end
+        ns.mode = "restock"
+        ns.ContextDB().mode = "restock"
+        showAllProfileItems = false
+        ns.RecalculateToBuy()
+        RefreshSidebar()
+        SelectTab(currentCatIdx)
+    end)
+
+    -- ── Profile nav: << Name >> (shown when mode = restock) ──
+    sidebarProfileNav = CreateFrame("Frame", nil, sidebarPanel)
+    sidebarProfileNav:SetSize(146, 22)
+    sidebarProfileNav:Hide()
+
+    local prevBtn = CreateFrame("Button", nil, sidebarProfileNav, "UIPanelButtonTemplate")
+    prevBtn:SetSize(24, 20)
+    prevBtn:SetPoint("LEFT", sidebarProfileNav, "LEFT", 0, 0)
+    prevBtn:SetText("<<")
+    prevBtn:SetScript("OnClick", function()
+        local names = ns.GetProfileNames()
+        if #names < 2 then return end
+        local idx = 1
+        for i, n in ipairs(names) do if n == ns.currentProfile then idx = i break end end
+        idx = idx - 1; if idx < 1 then idx = #names end
+        ns.SetActiveProfile(names[idx])
+    end)
+
+    sidebarProfileLabel = sidebarProfileNav:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+    sidebarProfileLabel:SetPoint("LEFT",  prevBtn,           "RIGHT",  2,   0)
+    sidebarProfileLabel:SetPoint("RIGHT", sidebarProfileNav, "RIGHT", -26,  0)
+    sidebarProfileLabel:SetJustifyH("CENTER")
+    sidebarProfileLabel:SetText("(no profile)")
+
+    local nextBtn = CreateFrame("Button", nil, sidebarProfileNav, "UIPanelButtonTemplate")
+    nextBtn:SetSize(24, 20)
+    nextBtn:SetPoint("RIGHT", sidebarProfileNav, "RIGHT", 0, 0)
+    nextBtn:SetText(">>")
+    nextBtn:SetScript("OnClick", function()
+        local names = ns.GetProfileNames()
+        if #names < 2 then return end
+        local idx = 1
+        for i, n in ipairs(names) do if n == ns.currentProfile then idx = i break end end
+        idx = idx % #names + 1
+        ns.SetActiveProfile(names[idx])
+    end)
+
+    -- ── Profile actions: New | Delete | Save ─────────────────
+    sidebarProfileActions = CreateFrame("Frame", nil, sidebarPanel)
+    sidebarProfileActions:SetSize(146, 22)
+    sidebarProfileActions:Hide()
+
+    local newBtn = CreateFrame("Button", nil, sidebarProfileActions, "UIPanelButtonTemplate")
+    newBtn:SetSize(46, 20)
+    newBtn:SetPoint("LEFT", sidebarProfileActions, "LEFT", 0, 0)
+    newBtn:SetText("New")
+    newBtn:SetScript("OnClick", function() StaticPopup_Show("GUILDBANKRESTOCK_NEW_PROFILE") end)
+
+    sidebarProfileDelBtn = CreateFrame("Button", nil, sidebarProfileActions, "UIPanelButtonTemplate")
+    sidebarProfileDelBtn:SetSize(50, 20)
+    sidebarProfileDelBtn:SetPoint("LEFT", sidebarProfileActions, "LEFT", 48, 0)
+    sidebarProfileDelBtn:SetText("Delete")
+    sidebarProfileDelBtn:SetScript("OnClick", function()
+        if ns.currentProfile then ns.DeleteProfile(ns.currentProfile) end
+    end)
+
+    local saveBtn = CreateFrame("Button", nil, sidebarProfileActions, "UIPanelButtonTemplate")
+    saveBtn:SetSize(46, 20)
+    saveBtn:SetPoint("LEFT", sidebarProfileActions, "LEFT", 100, 0)
+    saveBtn:SetText("Save")
+    saveBtn:SetScript("OnClick", function() StaticPopup_Show("GUILDBANKRESTOCK_SAVE_PROFILE") end)
+
+    -- ── Scan row (shown when context = personal) ──────────────
+    sidebarScanRow = CreateFrame("Frame", nil, sidebarPanel)
+    sidebarScanRow:SetSize(146, 36)
+    sidebarScanRow:Hide()
+
+    local scanBtn = CreateFrame("Button", nil, sidebarScanRow, "UIPanelButtonTemplate")
+    scanBtn:SetSize(146, 20)
+    scanBtn:SetPoint("TOPLEFT", sidebarScanRow, "TOPLEFT", 0, 0)
+    scanBtn:SetText("Scan Inventory")
+    scanBtn:SetScript("OnClick", function()
+        if ns.DoPersonalScan then ns.DoPersonalScan() end
+    end)
+
+    sidebarScanStatus = sidebarScanRow:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+    sidebarScanStatus:SetPoint("TOPLEFT", sidebarScanRow, "TOPLEFT", 2, -22)
+    sidebarScanStatus:SetWidth(142)
+    sidebarScanStatus:SetJustifyH("LEFT")
+    sidebarScanStatus:SetText("|cffff8844Not scanned|r")
+
+    -- ── Category buttons (positions updated by RefreshSidebar) ─
+    local defaultY = -(4 + ctxH + 4 + modeH + 10)
     for i, cat in ipairs(CATEGORIES) do
         local btn = CreateFrame("Button", nil, sidebarPanel, "UIPanelButtonTemplate")
-        btn:SetSize(116, btnH)
-        btn:SetPoint("TOPLEFT", sidebarPanel, "TOPLEFT", 2, y)
+        btn:SetSize(146, btnH)
+        btn:SetPoint("TOPLEFT", sidebarPanel, "TOPLEFT", 2, defaultY)
         btn:SetText(cat.name)
         local idx = i
         btn:SetScript("OnClick", function() SelectTab(idx) end)
         sidebarButtons[idx] = btn
-        y = y - btnH - pad
+        categoryBtns[i]     = btn
+        defaultY = defaultY - btnH - pad
     end
 
+    -- ── Bottom buttons (fixed anchors) ────────────────────────
     local aboutBtn = CreateFrame("Button", nil, sidebarPanel, "UIPanelButtonTemplate")
-    aboutBtn:SetSize(116, btnH)
+    aboutBtn:SetSize(146, btnH)
     aboutBtn:SetPoint("BOTTOMLEFT", sidebarPanel, "BOTTOMLEFT", 2, (btnH + pad) * 2 + 4)
     aboutBtn:SetText("About")
     aboutBtn:SetScript("OnClick", function() SelectTab(ABOUT_TAB) end)
     sidebarButtons[ABOUT_TAB] = aboutBtn
 
     local selectedBtn = CreateFrame("Button", nil, sidebarPanel, "UIPanelButtonTemplate")
-    selectedBtn:SetSize(116, btnH)
+    selectedBtn:SetSize(146, btnH)
     selectedBtn:SetPoint("BOTTOMLEFT", sidebarPanel, "BOTTOMLEFT", 2, btnH + pad + 4)
     selectedBtn:SetText("Selected")
     selectedBtn:SetScript("OnClick", function() SelectTab(ALL_TAB) end)
     sidebarButtons[ALL_TAB] = selectedBtn
 
     local logBtn = CreateFrame("Button", nil, sidebarPanel, "UIPanelButtonTemplate")
-    logBtn:SetSize(116, btnH)
+    logBtn:SetSize(146, btnH)
     logBtn:SetPoint("BOTTOMLEFT", sidebarPanel, "BOTTOMLEFT", 2, 4)
     logBtn:SetText("Log")
     logBtn:SetScript("OnClick", function() SelectTab(LOG_TAB) end)
     sidebarButtons[LOG_TAB] = logBtn
+end
+
+-- ============================================================
+-- RefreshSidebar  (updates highlights and repositions dynamic sections)
+-- ============================================================
+RefreshSidebar = function()
+    if not sidebarBulkBtn then return end
+
+    -- Guild / Personal highlight
+    local isPersonal = ns.context == "personal"
+    guildCtxBtn:SetNormalFontObject(isPersonal and GameFontNormal or GameFontHighlight)
+    personalCtxBtn:SetNormalFontObject(isPersonal and GameFontHighlight or GameFontNormal)
+    if isPersonal then
+        guildCtxBtn:UnlockHighlight(); personalCtxBtn:LockHighlight()
+    else
+        guildCtxBtn:LockHighlight(); personalCtxBtn:UnlockHighlight()
+    end
+
+    -- Bulk / Restock highlight
+    local isBulk = ns.mode == "bulk"
+    sidebarBulkBtn:SetNormalFontObject(isBulk and GameFontHighlight or GameFontNormal)
+    sidebarRestockBtn:SetNormalFontObject(isBulk and GameFontNormal or GameFontHighlight)
+    if isBulk then
+        sidebarBulkBtn:LockHighlight(); sidebarRestockBtn:UnlockHighlight()
+    else
+        sidebarBulkBtn:UnlockHighlight(); sidebarRestockBtn:LockHighlight()
+    end
+
+    -- y starts just below the two fixed rows (context + mode) plus their gaps
+    local y = -(4 + 22 + 4 + 22 + 6)  -- -58
+
+    -- Profile section (restock only)
+    local showProfile = ns.mode == "restock"
+    if showProfile then
+        sidebarProfileLabel:SetText(ns.currentProfile or "(no profile)")
+        if ns.currentProfile then sidebarProfileDelBtn:Enable() else sidebarProfileDelBtn:Disable() end
+        sidebarProfileNav:ClearAllPoints()
+        sidebarProfileNav:SetPoint("TOPLEFT", sidebarPanel, "TOPLEFT", 2, y)
+        sidebarProfileNav:Show()
+        y = y - 26
+        sidebarProfileActions:ClearAllPoints()
+        sidebarProfileActions:SetPoint("TOPLEFT", sidebarPanel, "TOPLEFT", 2, y)
+        sidebarProfileActions:Show()
+        y = y - 26
+    else
+        sidebarProfileNav:Hide()
+        sidebarProfileActions:Hide()
+    end
+
+    -- Scan section (personal only)
+    local showScan = isPersonal
+    if showScan then
+        if ns.personalScanned and ns.personalScanTime then
+            sidebarScanStatus:SetText("|cff00ff00Scanned " .. ns.personalScanTime .. "|r")
+        elseif ns.personalScanned then
+            sidebarScanStatus:SetText("|cff00ff00Scanned|r")
+        else
+            sidebarScanStatus:SetText("|cffff8844Not scanned|r")
+        end
+        sidebarScanRow:ClearAllPoints()
+        sidebarScanRow:SetPoint("TOPLEFT", sidebarPanel, "TOPLEFT", 2, y)
+        sidebarScanRow:Show()
+        y = y - 40
+    else
+        sidebarScanRow:Hide()
+    end
+
+    y = y - 6  -- separator gap before category buttons
+
+    for _, btn in ipairs(categoryBtns) do
+        btn:ClearAllPoints()
+        btn:SetPoint("TOPLEFT", sidebarPanel, "TOPLEFT", 2, y)
+        y = y - 28
+    end
 end
 
 -- AceGUI content group (fills the right side of the window)
@@ -1667,7 +1665,7 @@ contentGroup = AceGUI:Create("SimpleGroup")
 contentGroup:SetLayout("List")
 contentGroup.frame:SetParent(mainFrame)
 contentGroup.frame:ClearAllPoints()
-contentGroup.frame:SetPoint("TOPLEFT",     mainFrame, "TOPLEFT",     142, -36)
+contentGroup.frame:SetPoint("TOPLEFT",     mainFrame, "TOPLEFT",     172, -36)
 contentGroup.frame:SetPoint("BOTTOMRIGHT", mainFrame, "BOTTOMRIGHT",  -18,  32)
 
 -- SelectTab: highlight active sidebar button and rebuild content
@@ -1709,16 +1707,7 @@ ns.ApplySettingsToUI = function()
     end
     local ctxDB = ns.addon and ns.addon.db and ns.ContextDB and ns.ContextDB()
     currentRankFilter = ctxDB and ctxDB.rankFilter or nil
-    if guildCtxBtn and personalCtxBtn then
-        local isPersonal = ns.context == "personal"
-        guildCtxBtn:SetNormalFontObject(isPersonal and GameFontNormal or GameFontHighlight)
-        personalCtxBtn:SetNormalFontObject(isPersonal and GameFontHighlight or GameFontNormal)
-        if isPersonal then
-            guildCtxBtn:UnlockHighlight()
-            personalCtxBtn:LockHighlight()
-        else
-            guildCtxBtn:LockHighlight()
-            personalCtxBtn:UnlockHighlight()
-        end
-    end
+    RefreshSidebar()
 end
+
+ns.RefreshSidebar = function() RefreshSidebar() end
