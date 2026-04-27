@@ -36,7 +36,8 @@ local function DoScan()
         if #queue == 0 then
             scanEventFrame:UnregisterEvent("GUILDBANKBAGSLOTS_CHANGED")
             scanEventFrame:SetScript("OnEvent", nil)
-            ns.guildBankScanned = true
+            ns.guildBankScanned  = true
+            ns.guildBankScanTime = date("%H:%M")
             ns.Log("--- Guild Bank Scan ---", 0.4, 1, 0.8)
             local total = 0
             for itemID, count in pairs(ns.guildBankStock) do

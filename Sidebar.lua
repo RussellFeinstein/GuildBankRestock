@@ -20,7 +20,7 @@ ui.sidebarPanel = sidebarPanel
 local guildCtxBtn, personalCtxBtn
 local sidebarBulkBtn, sidebarRestockBtn
 local sidebarProfileNav, sidebarProfileLabel, sidebarProfileDelBtn, sidebarProfileActions
-local sidebarScanRow, sidebarScanStatus
+local sidebarScanRow, sidebarScanStatus, sidebarScanBtn, sidebarScanHint
 local categoryBtns = {}
 
 local RefreshSidebar  -- forward declaration; defined after the do-block
@@ -150,11 +150,11 @@ do
     sidebarScanRow:SetSize(146, 36)
     sidebarScanRow:Hide()
 
-    local scanBtn = CreateFrame("Button", nil, sidebarScanRow, "UIPanelButtonTemplate")
-    scanBtn:SetSize(146, 20)
-    scanBtn:SetPoint("TOPLEFT", sidebarScanRow, "TOPLEFT", 0, 0)
-    scanBtn:SetText("Scan Inventory")
-    scanBtn:SetScript("OnClick", function()
+    sidebarScanBtn = CreateFrame("Button", nil, sidebarScanRow, "UIPanelButtonTemplate")
+    sidebarScanBtn:SetSize(146, 20)
+    sidebarScanBtn:SetPoint("TOPLEFT", sidebarScanRow, "TOPLEFT", 0, 0)
+    sidebarScanBtn:SetText("Scan Inventory")
+    sidebarScanBtn:SetScript("OnClick", function()
         if ns.DoPersonalScan then ns.DoPersonalScan() end
     end)
 
@@ -164,18 +164,26 @@ do
     sidebarScanStatus:SetJustifyH("LEFT")
     sidebarScanStatus:SetText(C_ORANGE .. "Not scanned|r")
 
+    sidebarScanHint = sidebarPanel:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
+    sidebarScanHint:SetPoint("TOPLEFT", sidebarScanStatus, "BOTTOMLEFT", 0, -4)
+    sidebarScanHint:SetWidth(140)
+    sidebarScanHint:SetJustifyH("LEFT")
+    sidebarScanHint:Hide()
+
     -- ── Category buttons (positions updated by RefreshSidebar) ─
     local defaultY = -(4 + ctxH + 4 + modeH + 10)
     for i, cat in ipairs(CATEGORIES) do
-        local btn = CreateFrame("Button", nil, sidebarPanel, "UIPanelButtonTemplate")
-        btn:SetSize(146, btnH)
-        btn:SetPoint("TOPLEFT", sidebarPanel, "TOPLEFT", 2, defaultY)
-        btn:SetText(cat.name)
-        local idx = i
-        btn:SetScript("OnClick", function() ns.SelectTab(idx) end)
-        ui.sidebarButtons[idx] = btn
-        categoryBtns[i]        = btn
-        defaultY = defaultY - btnH - pad
+        if #cat.items > 0 then
+            local btn = CreateFrame("Button", nil, sidebarPanel, "UIPanelButtonTemplate")
+            btn:SetSize(146, btnH)
+            btn:SetPoint("TOPLEFT", sidebarPanel, "TOPLEFT", 2, defaultY)
+            btn:SetText(cat.name)
+            local idx = i
+            btn:SetScript("OnClick", function() ns.SelectTab(idx) end)
+            ui.sidebarButtons[idx] = btn
+            categoryBtns[i]        = btn
+            defaultY = defaultY - btnH - pad
+        end
     end
 
     -- ── Bottom buttons (fixed anchors) ────────────────────────
@@ -246,9 +254,8 @@ RefreshSidebar = function()
         sidebarProfileActions:Hide()
     end
 
-    -- Scan section (personal only)
-    local showScan = isPersonal
-    if showScan then
+    -- Scan section (guild and personal)
+    if isPersonal then
         if ns.personalScanned and ns.personalScanTime then
             sidebarScanStatus:SetText(C_GREEN .. "Scanned " .. ns.personalScanTime .. "|r")
         elseif ns.personalScanned then
@@ -256,20 +263,43 @@ RefreshSidebar = function()
         else
             sidebarScanStatus:SetText(C_ORANGE .. "Not scanned|r")
         end
-        sidebarScanRow:ClearAllPoints()
-        sidebarScanRow:SetPoint("TOPLEFT", sidebarPanel, "TOPLEFT", 2, y)
-        sidebarScanRow:Show()
-        y = y - 40
+        sidebarScanBtn:Show()
     else
-        sidebarScanRow:Hide()
+        if ns.guildBankScanned and ns.guildBankScanTime then
+            sidebarScanStatus:SetText(C_GREEN .. "Scanned " .. ns.guildBankScanTime .. "|r")
+        elseif ns.guildBankScanned then
+            sidebarScanStatus:SetText(C_GREEN .. "Scanned|r")
+        else
+            sidebarScanStatus:SetText(C_ORANGE .. "Not scanned|r")
+        end
+        sidebarScanBtn:Hide()
+    end
+    sidebarScanRow:ClearAllPoints()
+    sidebarScanRow:SetPoint("TOPLEFT", sidebarPanel, "TOPLEFT", 2, y)
+    sidebarScanRow:Show()
+    y = y - 40
+
+    local notScanned = (ns.context == "guild" and not ns.guildBankScanned)
+                    or (ns.context == "personal" and not ns.personalScanned)
+    if ns.mode == "restock" and notScanned then
+        sidebarScanHint:SetText(ns.context == "guild"
+            and "Open the guild bank\nto scan."
+            or  "Open your bank\nto scan.")
+        sidebarScanHint:Show()
+        y = y - 28
+    else
+        sidebarScanHint:Hide()
     end
 
     y = y - 6  -- separator gap before category buttons
 
-    for _, btn in ipairs(categoryBtns) do
-        btn:ClearAllPoints()
-        btn:SetPoint("TOPLEFT", sidebarPanel, "TOPLEFT", 2, y)
-        y = y - 28
+    for i = 1, #CATEGORIES do
+        local btn = categoryBtns[i]
+        if btn then
+            btn:ClearAllPoints()
+            btn:SetPoint("TOPLEFT", sidebarPanel, "TOPLEFT", 2, y)
+            y = y - 28
+        end
     end
 end
 

@@ -30,6 +30,7 @@ local defaults = {
         context       = "guild",
         windowWidth   = nil,
         windowHeight  = nil,
+        firstRun      = true,
         personal      = {
             items         = {},
             rankFilter    = nil,
@@ -71,6 +72,7 @@ ns.context            = "guild"
 ns.personalStock      = {}
 ns.personalScanned    = false
 ns.personalScanTime   = nil
+ns.guildBankScanTime  = nil
 
 -- ============================================================
 -- Helpers
@@ -325,6 +327,10 @@ function GBR:OnInitialize()
     end
 
     LoadSettings()
+    if self.db.global.firstRun then
+        ns.Print("New? Open the minimap button and check the |cFF00FF00About|r tab.")
+        self.db.global.firstRun = false
+    end
     if ns.ApplySettingsToUI then ns.ApplySettingsToUI() end
     if ns.RecalculateToBuy then ns.RecalculateToBuy() end
     if ns.InitMinimapButton then ns.InitMinimapButton() end

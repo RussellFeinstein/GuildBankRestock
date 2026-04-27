@@ -2,6 +2,22 @@
 
 All notable changes to GuildBankRestock will be documented here.
 
+## [0.9.5] - 2026-04-27
+
+### Added
+- **First-run hint**: on the very first load, a chat message directs new users to open the minimap button and check the About tab
+- **Guild bank scan timestamp**: after scanning the guild bank, the sidebar shows "Scanned HH:MM" (matching the existing Personal scan time display); scan status now shows for both Guild and Personal contexts
+- **Restock scan prompt**: in Restock mode, when no scan has been done yet, a dimmed hint appears below the scan status — "Open the guild bank to scan." or "Open your bank to scan."
+- **Tooltips on edit box fields**: hovering any input field now shows a tooltip — Max g ("Max price per unit. Leave blank for no limit."), Budget ("Per-run gold limit…"), Target ("Target quantity to keep in stock."), To Buy ("Amount to buy. Auto-calculated from Target minus current stock. Can be overridden manually.")
+- **Rank button tooltips**: hovering Rank 1, Rank 2, or All Ranks in the button bar shows a brief description of each tier
+- **Empty categories hidden**: sidebar buttons are no longer created for categories with no items (hides the empty Food stub)
+
+### Changed
+- "Add Items" / "Hide Extra" toggle in the Selected tab (Restock mode) renamed to **"Show All Items"** / **"Profile Only"** for clarity
+
+### Fixed
+- Typing numbers into any edit field no longer triggers action bar abilities — key events were propagating to the game's keybinding system for unhandled keys
+
 ## [0.9.4] - 2026-04-26
 
 ### Changed
