@@ -2,6 +2,11 @@
 
 All notable changes to GuildBankRestock will be documented here.
 
+## [0.9.7] - 2026-04-27
+
+### Fixed
+- Gems R1/R2 filter buttons now work correctly — all gem entries now carry `rank = 1` or `rank = 2` so the Rank 1 / Rank 2 / All Ranks filter applies to the Gems tab the same way it does for Potions and Flasks
+
 ## [0.9.6] - 2026-04-27
 
 ### Added
