@@ -2,6 +2,9 @@ local ADDON_NAME, ns = ...
 local CATEGORIES = ns.CATEGORIES
 local ui = ns.ui
 
+local C_GREEN  = "|cff00ff00"
+local C_ORANGE = "|cffff8844"
+
 -- ============================================================
 -- Sidebar panel (parented to main frame)
 -- ============================================================
@@ -159,7 +162,7 @@ do
     sidebarScanStatus:SetPoint("TOPLEFT", sidebarScanRow, "TOPLEFT", 2, -22)
     sidebarScanStatus:SetWidth(142)
     sidebarScanStatus:SetJustifyH("LEFT")
-    sidebarScanStatus:SetText("|cffff8844Not scanned|r")
+    sidebarScanStatus:SetText(C_ORANGE .. "Not scanned|r")
 
     -- ── Category buttons (positions updated by RefreshSidebar) ─
     local defaultY = -(4 + ctxH + 4 + modeH + 10)
@@ -247,11 +250,11 @@ RefreshSidebar = function()
     local showScan = isPersonal
     if showScan then
         if ns.personalScanned and ns.personalScanTime then
-            sidebarScanStatus:SetText("|cff00ff00Scanned " .. ns.personalScanTime .. "|r")
+            sidebarScanStatus:SetText(C_GREEN .. "Scanned " .. ns.personalScanTime .. "|r")
         elseif ns.personalScanned then
-            sidebarScanStatus:SetText("|cff00ff00Scanned|r")
+            sidebarScanStatus:SetText(C_GREEN .. "Scanned|r")
         else
-            sidebarScanStatus:SetText("|cffff8844Not scanned|r")
+            sidebarScanStatus:SetText(C_ORANGE .. "Not scanned|r")
         end
         sidebarScanRow:ClearAllPoints()
         sidebarScanRow:SetPoint("TOPLEFT", sidebarPanel, "TOPLEFT", 2, y)

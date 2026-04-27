@@ -129,7 +129,7 @@ UpdateUI = function()
     if not mainFrame then return end
 
     if ns.state == ns.STATE.IDLE then
-        SetStatusText("Select items and quantities, then click Start.")
+        SetStatusText("Select items and quantities, then click Start Search.")
         ShowTabView()
 
     elseif ns.state == ns.STATE.SEARCHING then

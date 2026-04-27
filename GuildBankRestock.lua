@@ -2,6 +2,9 @@ local ADDON_NAME, ns = ...
 
 local CATEGORIES = ns.CATEGORIES
 
+local COPPER_PER_GOLD   = 10000
+local COPPER_PER_SILVER = 100
+
 -- ============================================================
 -- Ace3 addon object
 -- ============================================================
@@ -383,9 +386,9 @@ function GBR:COMMODITY_PURCHASE_SUCCEEDED()
 
     if ns.budget > 0 then
         local spent = ns.runStartMoney - GetMoney()
-        if spent >= ns.budget * 10000 then
-            local g = math.floor(spent / 10000)
-            local s = math.floor((spent % 10000) / 100)
+        if spent >= ns.budget * COPPER_PER_GOLD then
+            local g = math.floor(spent / COPPER_PER_GOLD)
+            local s = math.floor((spent % COPPER_PER_GOLD) / COPPER_PER_SILVER)
             local c = spent % 100
             local summary = string.format("Budget reached: %dg %ds %dc spent.", g, s, c)
             ns.Print(summary)

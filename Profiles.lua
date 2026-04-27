@@ -45,6 +45,9 @@ function ns.DeleteProfile(name)
     end
     local names = ns.GetProfileNames()
     ns.SetActiveProfile(names[1])
+    if #names == 0 then
+        ns.Print("No profiles remain — create one with New.")
+    end
 end
 
 function ns.SetActiveProfile(name)

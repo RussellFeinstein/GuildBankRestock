@@ -2,6 +2,18 @@
 
 All notable changes to GuildBankRestock will be documented here.
 
+## [0.9.4] - 2026-04-26
+
+### Changed
+- "Est Run" and "Budget" labels in the search bar now use `GameFontHighlightLarge` for better readability
+- Status bar idle text corrected from "…click Start." to "…click Start Search."
+- Sidebar scan-status color codes extracted to `C_GREEN` / `C_ORANGE` file-level locals (code cleanup)
+- Budget logic: magic numbers `10000` and `100` replaced with `COPPER_PER_GOLD` / `COPPER_PER_SILVER` constants
+- `## OptionalDeps: Ace3` removed from .toc — Ace3 is bundled locally in `Libs/` and is not a game-level optional dependency
+
+### Fixed
+- `ns.DeleteProfile`: prints "No profiles remain — create one with New." when the last profile is deleted, instead of silently leaving the UI in a "(no profile)" state with no guidance
+
 ## [0.9.3] - 2026-04-25
 
 ### Changed

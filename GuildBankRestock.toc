@@ -2,8 +2,7 @@
 ## Title: Guild Bank Restock
 ## Notes: Restocks guild bank items from the AH via Auctionator. Use /restock to open.
 ## Dependencies: Auctionator
-## OptionalDeps: Ace3
-## Version: 0.9.3
+## Version: 0.9.4
 ## SavedVariables: GuildBankRestockDB
 
 # Libraries
