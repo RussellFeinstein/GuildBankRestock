@@ -252,7 +252,7 @@ local function BuildItemsContent(catIdx)
     bulkSetBox:SetMaxLetters(5)
     bulkSetBox:SetCallback("OnEnter", function(widget)
         GameTooltip:SetOwner(widget.editbox, "ANCHOR_RIGHT")
-        GameTooltip:SetText("Bulk-set value.\nPress " .. bulkApplyLabel .. " (or Enter) to apply\nto every item that is both visible in this tab\nAND currently checked. Uncheck the rows you want to skip.", 1, 1, 1)
+        GameTooltip:SetText("Bulk-set value.\nPress " .. bulkApplyLabel .. " (or Enter) to apply\nto every row in this tab whose checkbox is ticked.\nTick rows to include them; untick to exclude.", 1, 1, 1)
         GameTooltip:Show()
     end)
     bulkSetBox:SetCallback("OnLeave", function() GameTooltip:Hide() end)
@@ -303,7 +303,7 @@ local function BuildItemsContent(catIdx)
             end
         end
         if applied == 0 then
-            ns.Print("No checked items in view. Tick the rows you want to set.")
+            ns.Print("No rows are ticked in this tab. Tick the ones you want to include.")
         end
         rebuild()
     end
