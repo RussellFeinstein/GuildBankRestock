@@ -484,7 +484,15 @@ local function BuildItemsContent(catIdx)
         local function sortKey(e)
             local it, ci, ii = e.item, e.catIdx, e.itemIdx
             local col = ui.sortCol
-            if col == "name"   then return (GetItemInfo(it.id) or tostring(it.id)):lower() end
+            if col == "name"   then
+                -- Items whose names haven't loaded into WoW's item cache yet sort to the
+                -- bottom (return nil) rather than falling back to tostring(it.id), which
+                -- would sort uncached IDs lexicographically among the letter-named rows
+                -- and cluster them at the top of an A->Z sort. Once GetItemInfo populates
+                -- (TryLoadLink polls per-row), the next rebuild repositions them correctly.
+                local n = GetItemInfo(it.id)
+                return n and n:lower() or nil
+            end
             if col == "target" then return ns.GetProfileTarget(ci, ii) end
             if col == "inbank" then return ns.GetStock(it.id) end
             if col == "tobuy"  then return ns.toBuy[ci .. "_" .. ii] or 0 end
