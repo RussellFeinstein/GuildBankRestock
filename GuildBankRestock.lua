@@ -95,6 +95,14 @@ function ns.Log(msg, r, g, b)
     end
 end
 
+-- Log-only diagnostic helper for in-flight tracing of the search path. Writes to the
+-- in-addon log only, never to chat. Intentional: the log is the recoverable diagnostic
+-- record (visible in the Log tab, exportable when reporting issues), while chat stays
+-- curated for user-actionable messages. The 500-entry log cap handles long-term bloat.
+local function diag(msg)
+    ns.Log("[diag] " .. msg, 1, 1, 0.5)
+end
+
 local function UnregisterListener()
     if ns.listenerRegistered then
         Auctionator.EventBus:Unregister(ns.listener, { Auctionator.Shopping.Tab.Events.SearchEnd })
@@ -317,7 +325,7 @@ ns.StartSearch = function()
     local searchEndEvent = Auctionator.Shopping and Auctionator.Shopping.Tab
         and Auctionator.Shopping.Tab.Events and Auctionator.Shopping.Tab.Events.SearchEnd
     if not searchEndEvent then
-        ns.Log("Auctionator.Shopping.Tab.Events.SearchEnd is nil — Auctionator API may have changed.", 1, 0.3, 0.3)
+        ns.Log("Auctionator.Shopping.Tab.Events.SearchEnd is nil. Auctionator API may have changed.", 1, 0.3, 0.3)
         return
     end
     Auctionator.EventBus:Register(ns.listener, { searchEndEvent })
@@ -337,12 +345,16 @@ ns.StartSearch = function()
     -- old callbacks that fire after a restart compare unequal and drop their results.
     local pending = #ns.activeItems
     local names   = {}
+    diag("Resolving " .. pending .. " item names asynchronously (gen=" .. thisGen .. ").")
 
     for i, ref in ipairs(ns.activeItems) do
         local catItem = CATEGORIES[ref.catIdx].items[ref.itemIdx]
         local itemObj = Item:CreateFromItemID(catItem.id)
         itemObj:ContinueOnItemLoad(function()
-            if ns.searchGen ~= thisGen then return end
+            if ns.searchGen ~= thisGen then
+                diag("Stale ContinueOnItemLoad callback dropped (gen=" .. thisGen .. ", current=" .. tostring(ns.searchGen) .. ").")
+                return
+            end
             names[i]  = itemObj:GetItemName()
             pending   = pending - 1
             if pending == 0 then
@@ -353,7 +365,11 @@ ns.StartSearch = function()
 end
 
 ns.FireAuctionatorSearch = function(names, thisGen)
-    if ns.searchGen ~= thisGen then return end
+    if ns.searchGen ~= thisGen then
+        diag("FireAuctionatorSearch dropped: gen mismatch (gen=" .. tostring(thisGen) .. ", current=" .. tostring(ns.searchGen) .. ").")
+        return
+    end
+    diag("All " .. #names .. " names resolved; building search strings.")
     local sbsOk, sbsResult = pcall(ns.BuildSearchStrings, names)
     if not sbsOk then
         ns.Log("BuildSearchStrings error: " .. tostring(sbsResult), 1, 0.3, 0.3)
@@ -361,13 +377,16 @@ ns.FireAuctionatorSearch = function(names, thisGen)
         ns.UpdateUI()
         return
     end
+    diag("Built " .. #sbsResult .. " search string(s). First: " .. tostring(sbsResult[1] or "<none>"))
     if not AuctionatorShoppingFrame.DoSearch then
-        ns.Log("AuctionatorShoppingFrame:DoSearch is nil — Auctionator API mismatch.", 1, 0.3, 0.3)
+        ns.Log("AuctionatorShoppingFrame:DoSearch is nil. Auctionator API mismatch.", 1, 0.3, 0.3)
         return
     end
     local doOk, doErr = pcall(function() AuctionatorShoppingFrame:DoSearch(sbsResult) end)
     if not doOk then
         ns.Log("DoSearch error: " .. tostring(doErr), 1, 0.3, 0.3)
+    else
+        diag("DoSearch returned. Waiting on Auctionator SearchEnd.")
     end
 end
 
@@ -517,10 +536,18 @@ end
 -- Auctionator EventBus listener
 -- ============================================================
 function ns.listener:ReceiveEvent(eventName, results)
+    local resultCount = type(results) == "table" and #results or tostring(results)
+    diag("EventBus fired: " .. tostring(eventName) .. " (results=" .. resultCount .. ").")
     local expected = Auctionator and Auctionator.Shopping and Auctionator.Shopping.Tab
         and Auctionator.Shopping.Tab.Events and Auctionator.Shopping.Tab.Events.SearchEnd
-    if eventName ~= expected then return end
-    if ns.state ~= ns.STATE.SEARCHING then return end
+    if eventName ~= expected then
+        diag("  ignoring (eventName not SearchEnd).")
+        return
+    end
+    if ns.state ~= ns.STATE.SEARCHING then
+        diag("  ignoring (state=" .. tostring(ns.state) .. ", not SEARCHING).")
+        return
+    end
     ns.listenerRegistered = false
     Auctionator.EventBus:Unregister(self, { expected })
     local mapOk, mapErr = pcall(ns.MapResultRows, results)

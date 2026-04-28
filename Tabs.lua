@@ -303,7 +303,7 @@ local function BuildItemsContent(catIdx)
             end
         end
         if applied == 0 then
-            ns.Print("No checked items in view — tick the rows you want to set.")
+            ns.Print("No checked items in view. Tick the rows you want to set.")
         end
         rebuild()
     end

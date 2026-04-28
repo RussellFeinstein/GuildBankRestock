@@ -169,7 +169,7 @@ UpdateUI = function()
             if bought > 0 and skipped == 0 and notFound == 0 then
                 msg, logMsg = "|cff00ff00All items purchased!|r", "All items purchased."
             elseif bought == 0 and skipped == 0 and notFound > 0 then
-                msg = string.format("|cffffaa00No listings found on AH.|r\n%d item(s) unavailable — try later.", notFound)
+                msg = string.format("|cffffaa00No listings found on AH.|r\n%d item(s) unavailable. Try later.", notFound)
                 logMsg = string.format("No listings found on AH. %d item(s) unavailable.", notFound)
             elseif #parts > 0 then
                 msg = table.concat(parts, " ")
